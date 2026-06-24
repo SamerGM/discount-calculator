@@ -16,6 +16,11 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.samer.discountcalculator"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "d0aec61b-4d69-450f-aa17-b7a83677514e"
+      }
     }
   }
 }
