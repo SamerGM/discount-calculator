@@ -1,25 +1,31 @@
 {
   "expo": {
-    "name": "Discount Calculator",
+    "name": "Easy Shopping Calculator",
     "slug": "discount-calculator",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1E3A8A"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.samer.discountcalculator"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#3B82F6"
       },
-      "package": "com.samer.discountcalculator"
+      "package": "com.samer.discountcalculator",
+      "versionCode": 7
     },
     "extra": {
       "eas": {
-        "projectId": "d0aec61b-4d69-450f-aa17-b7a83677514e"
+        "projectId": "YOUR_PROJECT_ID_HERE"
       }
     }
   }
