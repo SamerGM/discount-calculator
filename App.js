@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet, Text, View, TextInput, TouchableOpacity,
   ScrollView, StatusBar, KeyboardAvoidingView, Platform,
+  useColorScheme,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const lightTheme = {
   bg: '#F8FAFC', surface: '#FFFFFF', surfaceAlt: '#F1F5F9', border: '#E2E8F0',
@@ -225,10 +227,49 @@ const AdvancedTab = ({ theme, rtl, t }) => {
 };
 
 export default function App() {
-  const [isDark, setIsDark] = useState(false);
+  const systemScheme = useColorScheme();
+  const [isDark, setIsDark] = useState(null);
+  const [lang, setLang] = useState('en');
+  const [loaded, setLoaded] = useState(false);
+
+  // Load saved preferences on first launch
+  useEffect(() => {
+    const loadPrefs = async () => {
+      try {
+        const savedTheme = await AsyncStorage.getItem('theme');
+        const savedLang = await AsyncStorage.getItem('lang');
+        if (savedTheme !== null) {
+          setIsDark(savedTheme === 'dark');
+        } else {
+          // No saved preference — use system default
+          setIsDark(systemScheme === 'dark');
+        }
+        if (savedLang !== null) setLang(savedLang);
+      } catch (e) {
+        setIsDark(systemScheme === 'dark');
+      }
+      setLoaded(true);
+    };
+    loadPrefs();
+  }, []);
+
+  // Save theme when changed
+  const handleThemeToggle = async () => {
+    const newVal = !isDark;
+    setIsDark(newVal);
+    try { await AsyncStorage.setItem('theme', newVal ? 'dark' : 'light'); } catch (e) {}
+  };
+
+  // Save language when changed
+  const handleLangChange = async (newLang) => {
+    setLang(newLang);
+    try { await AsyncStorage.setItem('lang', newLang); } catch (e) {}
+  };
+
+  if (!loaded) return null;
+
   const theme = isDark ? darkTheme : lightTheme;
   const [activeTab, setActiveTab] = useState('simple');
-  const [lang, setLang] = useState('en');
   const rtl = lang === 'ar';
   const t = translations[lang];
 
@@ -240,17 +281,17 @@ export default function App() {
         {/* Header */}
         <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
 
-          {/* Left — Theme toggle */}
+          {/* Left — Theme toggle pill */}
           <TouchableOpacity
-            style={[styles.themeToggle, { backgroundColor: isDark ? '#334155' : '#F1F5F9', borderColor: theme.border }]}
-            onPress={() => setIsDark(!isDark)}
+            style={[styles.themeToggle, { backgroundColor: isDark ? '#1E293B' : '#E2E8F0' }]}
+            onPress={handleThemeToggle}
             activeOpacity={0.8}
           >
-            <View style={[styles.toggleIcon, !isDark && styles.toggleIconActive, { backgroundColor: !isDark ? '#FFFFFF' : 'transparent' }]}>
-              <Text style={styles.toggleEmoji}>☀️</Text>
-            </View>
-            <View style={[styles.toggleIcon, isDark && styles.toggleIconActive, { backgroundColor: isDark ? '#1E293B' : 'transparent' }]}>
-              <Text style={styles.toggleEmoji}>🌙</Text>
+            <View style={[styles.toggleKnob, {
+              backgroundColor: isDark ? '#60A5FA' : '#3B82F6',
+              alignSelf: isDark ? 'flex-end' : 'flex-start',
+            }]}>
+              <Text style={styles.toggleEmoji}>{isDark ? '🌙' : '☀️'}</Text>
             </View>
           </TouchableOpacity>
 
@@ -264,13 +305,13 @@ export default function App() {
           <View style={styles.langToggle}>
             <TouchableOpacity
               style={[styles.langBtn, { backgroundColor: lang === 'en' ? theme.accent : theme.surfaceAlt, borderColor: lang === 'en' ? theme.accent : theme.border }]}
-              onPress={() => setLang('en')}>
+              onPress={() => handleLangChange('en')}>
               <Text style={[styles.langBtnText, { color: lang === 'en' ? '#fff' : theme.textSecondary }]}>EN</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.langBtn, { backgroundColor: lang === 'ar' ? theme.accent : theme.surfaceAlt, borderColor: lang === 'ar' ? theme.accent : theme.border }]}
-              onPress={() => setLang('ar')}>
-              <Text style={[styles.langBtnText, { color: lang === 'ar' ? '#fff' : theme.textSecondary }]}>العربية</Text>
+              onPress={() => handleLangChange('ar')}>
+              <Text style={[styles.langBtnText, { color: lang === 'ar' ? '#fff' : theme.textSecondary }]}>عربي</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -299,13 +340,12 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontWeight: '800', letterSpacing: -0.5 },
   langToggle: { flexDirection: 'row', gap: 4 },
 
-  // Theme toggle pill
-  themeToggle: { flexDirection: 'row', borderRadius: 20, borderWidth: 1.5, padding: 3, gap: 2 },
-  toggleIcon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  toggleIconActive: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 2 },
-  toggleEmoji: { fontSize: 14 },
+  // Smooth pill toggle
+  themeToggle: { width: 56, height: 30, borderRadius: 15, padding: 3, justifyContent: 'center' },
+  toggleKnob: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  toggleEmoji: { fontSize: 13 },
 
-  langBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1.5 },
+  langBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1.5 },
   langBtnText: { fontSize: 12, fontWeight: '700' },
   tabBar: { borderBottomWidth: 1 },
   tab: { flex: 1, paddingVertical: 14, alignItems: 'center' },
