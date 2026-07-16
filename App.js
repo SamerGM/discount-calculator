@@ -1,10 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet, Text, View, TextInput, TouchableOpacity,
   ScrollView, StatusBar, KeyboardAvoidingView, Platform,
-  useColorScheme,
+  useColorScheme, Modal, Alert, ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
+
+// ─── PASTE YOUR GOOGLE VISION API KEY HERE ───────────────────────────────────
+const VISION_API_KEY = 'AIzaSyCdzCuPTWjo1j4HXjr6ZIgKtlZNNM_7YxE';
+// ─────────────────────────────────────────────────────────────────────────────
 
 const lightTheme = {
   bg: '#F8FAFC', surface: '#FFFFFF', surfaceAlt: '#F1F5F9', border: '#E2E8F0',
@@ -41,6 +46,15 @@ const translations = {
     stackedNotEqual: (d1, d2, sum) => `${d1}% + ${d2}% stacked ≠ ${sum}% flat`,
     originalPriceRow: 'Original Price', discountRow: (d) => `Discount (${d}%)`,
     taxRow: (t) => `Tax (${t}%)`, extraSaved: 'Extra saved',
+    scanPhoto: 'Scan Price Tag',
+    takePhoto: '📷  Take Photo',
+    chooseGallery: '🖼️  Choose from Gallery',
+    cancel: 'Cancel',
+    scanning: 'Scanning image...',
+    scanSuccess: 'Scan complete!',
+    scanFailed: 'Could not detect price. Please enter manually.',
+    scanTitle: 'Scan Price Tag',
+    scanSubtitle: 'Take a photo or choose from gallery to auto-fill the price and discount',
   },
   ar: {
     appTitle: 'Discount Calculator',
@@ -60,20 +74,198 @@ const translations = {
     stackedNotEqual: (d1, d2, sum) => `${d1}% + ${d2}% متراكم ≠ ${sum}% مباشر`,
     originalPriceRow: 'السعر الأصلي', discountRow: (d) => `الخصم (${d}%)`,
     taxRow: (t) => `الضريبة (${t}%)`, extraSaved: 'التوفير الإضافي',
+    scanPhoto: 'مسح بطاقة السعر',
+    takePhoto: '📷  التقاط صورة',
+    chooseGallery: '🖼️  اختيار من المعرض',
+    cancel: 'إلغاء',
+    scanning: 'جارٍ مسح الصورة...',
+    scanSuccess: 'اكتمل المسح!',
+    scanFailed: 'لم يتم اكتشاف السعر. يرجى الإدخال يدوياً.',
+    scanTitle: 'مسح بطاقة السعر',
+    scanSubtitle: 'التقط صورة أو اختر من المعرض لملء السعر والخصم تلقائياً',
   },
 };
 
 const parseNum = (val) => { const n = parseFloat(val); return isNaN(n) ? 0 : n; };
 const fmt = (n) => n.toFixed(2);
 
-const InputField = ({ label, value, onChange, placeholder, theme, rtl }) => (
+// ─── OCR Helper ───────────────────────────────────────────────────────────────
+const extractPriceAndDiscount = (text) => {
+  // Extract price — look for patterns like $49.99, 49.99, 49,99
+  const pricePatterns = [
+    /\$\s*(\d+(?:[.,]\d{1,2})?)/,
+    /(\d+(?:[.,]\d{2}))\s*(?:USD|AED|EUR|GBP)/i,
+    /(?:price|total|amount|سعر|المبلغ)[:\s]*(\d+(?:[.,]\d{1,2})?)/i,
+    /(\d{1,6}(?:[.,]\d{2}))/,
+  ];
+
+  // Extract discount — look for patterns like 20%, 20% OFF, خصم 20%
+  const discountPatterns = [
+    /(\d{1,2})\s*%\s*(?:off|discount|sale|خصم|تخفيض)/i,
+    /(?:off|discount|save|خصم|تخفيض)\s*(\d{1,2})\s*%/i,
+    /(\d{1,2})\s*%/,
+  ];
+
+  let price = '';
+  let discount = '';
+
+  for (const pattern of pricePatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      price = match[1].replace(',', '.');
+      break;
+    }
+  }
+
+  for (const pattern of discountPatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      const val = parseInt(match[1]);
+      if (val > 0 && val <= 100) {
+        discount = val.toString();
+        break;
+      }
+    }
+  }
+
+  return { price, discount };
+};
+
+const scanImageWithVisionAPI = async (base64Image) => {
+  const response = await fetch(
+    `https://vision.googleapis.com/v1/images:annotate?key=${VISION_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requests: [{
+          image: { content: base64Image },
+          features: [{ type: 'TEXT_DETECTION', maxResults: 1 }],
+        }],
+      }),
+    }
+  );
+  const data = await response.json();
+  const text = data.responses?.[0]?.fullTextAnnotation?.text || '';
+  return extractPriceAndDiscount(text);
+};
+
+// ─── Scan Modal ───────────────────────────────────────────────────────────────
+const ScanModal = ({ visible, onClose, onResult, theme, t, rtl }) => {
+  const [scanning, setScanning] = useState(false);
+
+  const handleScan = async (useCamera) => {
+    try {
+      let result;
+      if (useCamera) {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Camera permission is required.');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          base64: true,
+          quality: 0.3,
+          allowsEditing: true,
+          exif: false,
+        });
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Gallery permission is required.');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          base64: true,
+          quality: 0.3,
+          allowsEditing: true,
+          exif: false,
+        });
+      }
+
+      if (!result.canceled && result.assets?.[0]?.base64) {
+        setScanning(true);
+        const { price, discount } = await scanImageWithVisionAPI(result.assets[0].base64);
+        setScanning(false);
+
+        if (price || discount) {
+          onResult({ price, discount });
+          onClose();
+        } else {
+          Alert.alert(t.scanFailed);
+        }
+      }
+    } catch (e) {
+      setScanning(false);
+      Alert.alert('Scan Error', e.message || 'Network error. Please check your internet connection and try again.');
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContainer, { backgroundColor: theme.surface }]}>
+          {scanning ? (
+            <View style={styles.scanningContainer}>
+              <ActivityIndicator size="large" color={theme.accent} />
+              <Text style={[styles.scanningText, { color: theme.text }]}>{t.scanning}</Text>
+            </View>
+          ) : (
+            <>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>{t.scanTitle}</Text>
+              <Text style={[styles.modalSubtitle, { color: theme.textSecondary }]}>{t.scanSubtitle}</Text>
+
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: theme.accent }]}
+                onPress={() => handleScan(true)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalBtnText}>{t.takePhoto}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: theme.accent2 }]}
+                onPress={() => handleScan(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalBtnText}>{t.chooseGallery}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalCancelBtn, { borderColor: theme.border }]}
+                onPress={onClose}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.modalCancelText, { color: theme.textSecondary }]}>{t.cancel}</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// ─── Input Field with Scan Button ─────────────────────────────────────────────
+const InputField = ({ label, value, onChange, placeholder, theme, rtl, onScan }) => (
   <View style={styles.fieldWrap}>
     <Text style={[styles.label, { color: theme.label, textAlign: rtl ? 'right' : 'left' }]}>{label}</Text>
-    <TextInput
-      style={[styles.input, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, color: theme.text, textAlign: rtl ? 'right' : 'left' }]}
-      value={value} onChangeText={onChange} placeholder={placeholder}
-      placeholderTextColor={theme.textMuted} keyboardType="decimal-pad" maxLength={10}
-    />
+    <View style={styles.inputRow}>
+      <TextInput
+        style={[styles.input, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, color: theme.text, textAlign: rtl ? 'right' : 'left', flex: 1 }]}
+        value={value} onChangeText={onChange} placeholder={placeholder}
+        placeholderTextColor={theme.textMuted} keyboardType="decimal-pad" maxLength={10}
+      />
+      {onScan && (
+        <TouchableOpacity
+          style={[styles.scanBtn, { backgroundColor: theme.accentLight, borderColor: theme.accent }]}
+          onPress={onScan}
+          activeOpacity={0.75}
+        >
+          <Text style={[styles.scanBtnText, { color: theme.accent }]}>📷</Text>
+        </TouchableOpacity>
+      )}
+    </View>
   </View>
 );
 
@@ -116,10 +308,13 @@ const SavingsBox = ({ theme, p, discountAmount, finalPrice, savingsPct, totalSav
   </View>
 );
 
+// ─── Simple Tab ───────────────────────────────────────────────────────────────
 const SimpleTab = ({ theme, rtl, t }) => {
   const [price, setPrice] = useState('');
   const [discount, setDiscount] = useState('');
   const [tax, setTax] = useState('');
+  const [scanVisible, setScanVisible] = useState(false);
+
   const p = parseNum(price), d = Math.min(parseNum(discount), 100), tv = parseNum(tax);
   const discountAmount = p * (d / 100);
   const afterDiscount = p - discountAmount;
@@ -127,13 +322,25 @@ const SimpleTab = ({ theme, rtl, t }) => {
   const finalPrice = afterDiscount + taxAmount;
   const savingsPct = p > 0 ? (discountAmount / p) * 100 : 0;
   const hasValues = p > 0 || d > 0;
+
   return (
     <ScrollView contentContainerStyle={styles.tabContent} keyboardShouldPersistTaps="handled">
+      <ScanModal
+        visible={scanVisible}
+        onClose={() => setScanVisible(false)}
+        onResult={({ price: p, discount: d }) => {
+          if (p) setPrice(p);
+          if (d) setDiscount(d);
+        }}
+        theme={theme} t={t} rtl={rtl}
+      />
+
       <View style={[styles.card, { backgroundColor: theme.surface }]}>
-        <InputField label={t.originalPrice} value={price} onChange={setPrice} placeholder="0.00" theme={theme} rtl={rtl} />
+        <InputField label={t.originalPrice} value={price} onChange={setPrice} placeholder="0.00" theme={theme} rtl={rtl} onScan={() => setScanVisible(true)} />
         <InputField label={t.discount} value={discount} onChange={v => setDiscount(v.replace(/[^0-9.]/g, ''))} placeholder="0" theme={theme} rtl={rtl} />
         <InputField label={t.salesTax} value={tax} onChange={setTax} placeholder="0" theme={theme} rtl={rtl} />
       </View>
+
       <View style={[styles.card, { backgroundColor: theme.surface }]}>
         <ResultRow label={t.originalPriceRow} value={`$${fmt(p)}`} theme={theme} rtl={rtl} />
         <ResultRow label={t.discountRow(d)} value={hasValues ? `− $${fmt(discountAmount)}` : '—'} theme={theme} negative={hasValues && discountAmount > 0} rtl={rtl} />
@@ -156,11 +363,14 @@ const SimpleTab = ({ theme, rtl, t }) => {
   );
 };
 
+// ─── Advanced Tab ─────────────────────────────────────────────────────────────
 const AdvancedTab = ({ theme, rtl, t }) => {
   const [price, setPrice] = useState('');
   const [discount1, setDiscount1] = useState('');
   const [discount2, setDiscount2] = useState('');
   const [tax, setTax] = useState('');
+  const [scanVisible, setScanVisible] = useState(false);
+
   const p = parseNum(price), d1 = Math.min(parseNum(discount1), 100), d2 = Math.min(parseNum(discount2), 100), tv = parseNum(tax);
   const savedByD1 = p * (d1 / 100), afterDiscount1 = p - savedByD1;
   const savedByD2 = afterDiscount1 * (d2 / 100), afterDiscount2 = afterDiscount1 - savedByD2;
@@ -169,19 +379,32 @@ const AdvancedTab = ({ theme, rtl, t }) => {
   const equivalentDiscount = p > 0 ? (totalSavings / p) * 100 : 0;
   const hasValues = p > 0 || d1 > 0 || d2 > 0;
   const lBorder = (color) => ({ borderLeftWidth: rtl ? 0 : 3, borderRightWidth: rtl ? 3 : 0, borderLeftColor: color, borderRightColor: color, paddingLeft: rtl ? 0 : 12, paddingRight: rtl ? 12 : 0 });
+
   return (
     <ScrollView contentContainerStyle={styles.tabContent} keyboardShouldPersistTaps="handled">
+      <ScanModal
+        visible={scanVisible}
+        onClose={() => setScanVisible(false)}
+        onResult={({ price: p, discount: d }) => {
+          if (p) setPrice(p);
+          if (d) setDiscount1(d);
+        }}
+        theme={theme} t={t} rtl={rtl}
+      />
+
       <View style={[styles.card, { backgroundColor: theme.surface }]}>
-        <InputField label={t.originalPrice} value={price} onChange={setPrice} placeholder="0.00" theme={theme} rtl={rtl} />
+        <InputField label={t.originalPrice} value={price} onChange={setPrice} placeholder="0.00" theme={theme} rtl={rtl} onScan={() => setScanVisible(true)} />
         <InputField label={t.firstDiscount} value={discount1} onChange={v => setDiscount1(v.replace(/[^0-9.]/g, ''))} placeholder="0" theme={theme} rtl={rtl} />
         <InputField label={t.extraDiscount} value={discount2} onChange={v => setDiscount2(v.replace(/[^0-9.]/g, ''))} placeholder="0" theme={theme} rtl={rtl} />
         <InputField label={t.salesTax} value={tax} onChange={setTax} placeholder="0" theme={theme} rtl={rtl} />
       </View>
+
       <View style={[styles.infoBox, { backgroundColor: theme.accent2Light, borderColor: theme.accent2 }]}>
         <Text style={[styles.infoText, { color: theme.accent2, textAlign: rtl ? 'right' : 'left' }]}>
           {t.stackedNote}{d1 > 0 && d2 > 0 ? t.stackedNoteSuffix(d1, d2, equivalentDiscount.toFixed(1), d1 + d2) : ''}
         </Text>
       </View>
+
       <View style={[styles.card, { backgroundColor: theme.surface }]}>
         <View style={[styles.stepBlock, lBorder(theme.accent)]}>
           <Text style={[styles.stepBlockTitle, { color: theme.accent, textAlign: rtl ? 'right' : 'left' }]}>{t.step1} ({d1}%)</Text>
@@ -226,24 +449,20 @@ const AdvancedTab = ({ theme, rtl, t }) => {
   );
 };
 
+// ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const systemScheme = useColorScheme();
   const [isDark, setIsDark] = useState(null);
   const [lang, setLang] = useState('en');
   const [loaded, setLoaded] = useState(false);
+  const [activeTab, setActiveTab] = useState('simple');
 
-  // Load saved preferences on first launch
   useEffect(() => {
     const loadPrefs = async () => {
       try {
         const savedTheme = await AsyncStorage.getItem('theme');
         const savedLang = await AsyncStorage.getItem('lang');
-        if (savedTheme !== null) {
-          setIsDark(savedTheme === 'dark');
-        } else {
-          // No saved preference — use system default
-          setIsDark(systemScheme === 'dark');
-        }
+        setIsDark(savedTheme !== null ? savedTheme === 'dark' : systemScheme === 'dark');
         if (savedLang !== null) setLang(savedLang);
       } catch (e) {
         setIsDark(systemScheme === 'dark');
@@ -253,25 +472,22 @@ export default function App() {
     loadPrefs();
   }, []);
 
-  // Save theme when changed
   const handleThemeToggle = async () => {
     const newVal = !isDark;
     setIsDark(newVal);
     try { await AsyncStorage.setItem('theme', newVal ? 'dark' : 'light'); } catch (e) {}
   };
 
-  // Save language when changed
   const handleLangChange = async (newLang) => {
     setLang(newLang);
     try { await AsyncStorage.setItem('lang', newLang); } catch (e) {}
   };
 
-  if (!loaded) return null;
-
-  const theme = isDark ? darkTheme : lightTheme;
-  const [activeTab, setActiveTab] = useState('simple');
+  const theme = isDark !== null ? (isDark ? darkTheme : lightTheme) : lightTheme;
   const rtl = lang === 'ar';
   const t = translations[lang];
+
+  if (!loaded) return <View style={{ flex: 1, backgroundColor: theme.bg }} />;
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -280,37 +496,25 @@ export default function App() {
 
         {/* Header */}
         <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
-
-          {/* Left — Theme toggle pill */}
           <TouchableOpacity
-            style={[styles.themeToggle, { backgroundColor: isDark ? '#1E293B' : '#E2E8F0' }]}
-            onPress={handleThemeToggle}
-            activeOpacity={0.8}
+            style={[styles.themeToggle, { backgroundColor: isDark ? '#334155' : '#CBD5E1', borderColor: isDark ? '#60A5FA' : '#3B82F6' }]}
+            onPress={handleThemeToggle} activeOpacity={0.8}
           >
-            <View style={[styles.toggleKnob, {
-              backgroundColor: isDark ? '#60A5FA' : '#3B82F6',
-              alignSelf: isDark ? 'flex-end' : 'flex-start',
-            }]}>
+            <View style={[styles.toggleKnob, { backgroundColor: isDark ? '#0F172A' : '#FFFFFF', alignSelf: isDark ? 'flex-end' : 'flex-start', borderColor: isDark ? '#60A5FA' : '#3B82F6' }]}>
               <Text style={styles.toggleEmoji}>{isDark ? '🌙' : '☀️'}</Text>
             </View>
           </TouchableOpacity>
 
-          {/* Center — Logo + Title */}
           <View style={styles.headerCenter}>
             <Text style={styles.headerLogo}>🏷️</Text>
             <Text style={[styles.headerTitle, { color: theme.text }]}>{t.appTitle}</Text>
           </View>
 
-          {/* Right — Language toggle */}
           <View style={styles.langToggle}>
-            <TouchableOpacity
-              style={[styles.langBtn, { backgroundColor: lang === 'en' ? theme.accent : theme.surfaceAlt, borderColor: lang === 'en' ? theme.accent : theme.border }]}
-              onPress={() => handleLangChange('en')}>
+            <TouchableOpacity style={[styles.langBtn, { backgroundColor: lang === 'en' ? theme.accent : theme.surfaceAlt, borderColor: lang === 'en' ? theme.accent : theme.border }]} onPress={() => handleLangChange('en')}>
               <Text style={[styles.langBtnText, { color: lang === 'en' ? '#fff' : theme.textSecondary }]}>EN</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.langBtn, { backgroundColor: lang === 'ar' ? theme.accent : theme.surfaceAlt, borderColor: lang === 'ar' ? theme.accent : theme.border }]}
-              onPress={() => handleLangChange('ar')}>
+            <TouchableOpacity style={[styles.langBtn, { backgroundColor: lang === 'ar' ? theme.accent : theme.surfaceAlt, borderColor: lang === 'ar' ? theme.accent : theme.border }]} onPress={() => handleLangChange('ar')}>
               <Text style={[styles.langBtnText, { color: lang === 'ar' ? '#fff' : theme.textSecondary }]}>عربي</Text>
             </TouchableOpacity>
           </View>
@@ -332,6 +536,7 @@ export default function App() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingTop: 52, paddingBottom: 14, paddingHorizontal: 14, borderBottomWidth: 1, alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
@@ -339,12 +544,9 @@ const styles = StyleSheet.create({
   headerLogo: { fontSize: 20 },
   headerTitle: { fontSize: 16, fontWeight: '800', letterSpacing: -0.5 },
   langToggle: { flexDirection: 'row', gap: 4 },
-
-  // Smooth pill toggle
-  themeToggle: { width: 56, height: 30, borderRadius: 15, padding: 3, justifyContent: 'center' },
-  toggleKnob: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  themeToggle: { width: 56, height: 30, borderRadius: 15, padding: 3, justifyContent: 'center', borderWidth: 1.5 },
+  toggleKnob: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
   toggleEmoji: { fontSize: 13 },
-
   langBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1.5 },
   langBtnText: { fontSize: 12, fontWeight: '700' },
   tabBar: { borderBottomWidth: 1 },
@@ -354,7 +556,10 @@ const styles = StyleSheet.create({
   card: { borderRadius: 16, padding: 16, gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2 },
   fieldWrap: { gap: 6 },
   label: { fontSize: 13, fontWeight: '600', letterSpacing: 0.2 },
+  inputRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   input: { height: 52, borderRadius: 12, borderWidth: 1.5, paddingHorizontal: 14, fontSize: 18, fontWeight: '600' },
+  scanBtn: { width: 52, height: 52, borderRadius: 12, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  scanBtnText: { fontSize: 22 },
   resultRow: { justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
   resultLabel: { fontSize: 14, fontWeight: '500' },
   resultValue: { fontSize: 15, fontWeight: '700' },
@@ -385,4 +590,15 @@ const styles = StyleSheet.create({
   equivalentSub: { fontSize: 12, fontWeight: '500', opacity: 0.8 },
   infoBox: { borderRadius: 12, borderWidth: 1, padding: 12 },
   infoText: { fontSize: 13, fontWeight: '500', lineHeight: 18 },
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalContainer: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 28, gap: 12 },
+  modalTitle: { fontSize: 20, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
+  modalSubtitle: { fontSize: 14, textAlign: 'center', marginBottom: 8, lineHeight: 20 },
+  modalBtn: { height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  modalBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  modalCancelBtn: { height: 52, borderRadius: 16, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  modalCancelText: { fontSize: 15, fontWeight: '600' },
+  scanningContainer: { alignItems: 'center', padding: 32, gap: 16 },
+  scanningText: { fontSize: 16, fontWeight: '600' },
 });

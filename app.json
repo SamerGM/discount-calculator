@@ -2,7 +2,7 @@
   "expo": {
     "name": "Easy Shopping Calculator",
     "slug": "discount-calculator",
-    "version": "1.0.6",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -21,8 +21,9 @@
         "backgroundColor": "#3B82F6"
       },
       "package": "com.samer.discountcalculator",
-      "versionCode": 12
+      "versionCode": 19
     },
+    "newArchEnabled": false,
     "extra": {
       "eas": {
         "projectId": "d0aec61b-4d69-450f-aa17-b7a83677514e"
