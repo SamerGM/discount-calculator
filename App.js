@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { openCropperAsync } from '@bsky.app/expo-image-crop-tool';
 
 // ─── PASTE YOUR GOOGLE VISION API KEY HERE ───────────────────────────────────
 const VISION_API_KEY = 'AIzaSyCdzCuPTWjo1j4HXjr6ZIgKtlZNNM_7YxE';
@@ -164,11 +165,27 @@ const ScanModal = ({ visible, onClose, onResult, theme, t, rtl }) => {
           return;
         }
         result = await ImagePicker.launchCameraAsync({
-          base64: true,
-          quality: 0.3,
+          base64: false,
+          quality: 0.8,
           allowsEditing: false,
           exif: false,
         });
+        if (!result.canceled && result.assets?.[0]?.uri) {
+          const cropped = await openCropperAsync(result.assets[0].uri, {
+            showRotationControl: false,
+          });
+          if (cropped) {
+            result = { canceled: false, assets: [{ ...result.assets[0], uri: cropped.uri, base64: null }] };
+            const response = await fetch(cropped.uri);
+            const blob = await response.blob();
+            const b64 = await new Promise((res) => {
+              const r = new FileReader();
+              r.onloadend = () => res(r.result.split(',')[1]);
+              r.readAsDataURL(blob);
+            });
+            result.assets[0].base64 = b64;
+          } else { return; }
+        }
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
@@ -176,11 +193,27 @@ const ScanModal = ({ visible, onClose, onResult, theme, t, rtl }) => {
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({
-          base64: true,
-          quality: 0.3,
+          base64: false,
+          quality: 0.8,
           allowsEditing: false,
           exif: false,
         });
+        if (!result.canceled && result.assets?.[0]?.uri) {
+          const cropped = await openCropperAsync(result.assets[0].uri, {
+            showRotationControl: false,
+          });
+          if (cropped) {
+            result = { canceled: false, assets: [{ ...result.assets[0], uri: cropped.uri, base64: null }] };
+            const response = await fetch(cropped.uri);
+            const blob = await response.blob();
+            const b64 = await new Promise((res) => {
+              const r = new FileReader();
+              r.onloadend = () => res(r.result.split(',')[1]);
+              r.readAsDataURL(blob);
+            });
+            result.assets[0].base64 = b64;
+          } else { return; }
+        }
       }
 
       if (!result.canceled && result.assets?.[0]?.base64) {
