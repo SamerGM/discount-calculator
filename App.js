@@ -166,7 +166,7 @@ const ScanModal = ({ visible, onClose, onResult, theme, t, rtl }) => {
         result = await ImagePicker.launchCameraAsync({
           base64: true,
           quality: 0.3,
-          allowsEditing: true,
+          allowsEditing: false,
           exif: false,
         });
       } else {
@@ -178,7 +178,7 @@ const ScanModal = ({ visible, onClose, onResult, theme, t, rtl }) => {
         result = await ImagePicker.launchImageLibraryAsync({
           base64: true,
           quality: 0.3,
-          allowsEditing: true,
+          allowsEditing: false,
           exif: false,
         });
       }
