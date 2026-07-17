@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { openCropperAsync } from '@bsky.app/expo-image-crop-tool';
 
 // ─── PASTE YOUR GOOGLE VISION API KEY HERE ───────────────────────────────────
@@ -177,9 +178,8 @@ const ScanModal = ({ visible, onClose, onResult, theme, t, rtl }) => {
           if (cropped) {
             result = { canceled: false, assets: [{ ...result.assets[0], uri: cropped.uri, base64: null }] };
             // Use expo-file-system to read base64
-            const fs = require('expo-file-system');
-            const b64 = await fs.readAsStringAsync(cropped.uri, {
-              encoding: fs.EncodingType.Base64,
+            const b64 = await FileSystem.readAsStringAsync(cropped.uri, {
+              encoding: FileSystem.EncodingType.Base64,
             });
             result.assets[0].base64 = b64;
           } else { return; }
@@ -203,9 +203,8 @@ const ScanModal = ({ visible, onClose, onResult, theme, t, rtl }) => {
           if (cropped) {
             result = { canceled: false, assets: [{ ...result.assets[0], uri: cropped.uri, base64: null }] };
             // Use expo-file-system to read base64
-            const fs = require('expo-file-system');
-            const b64 = await fs.readAsStringAsync(cropped.uri, {
-              encoding: fs.EncodingType.Base64,
+            const b64 = await FileSystem.readAsStringAsync(cropped.uri, {
+              encoding: FileSystem.EncodingType.Base64,
             });
             result.assets[0].base64 = b64;
           } else { return; }
