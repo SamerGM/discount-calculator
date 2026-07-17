@@ -176,12 +176,10 @@ const ScanModal = ({ visible, onClose, onResult, theme, t, rtl }) => {
           });
           if (cropped) {
             result = { canceled: false, assets: [{ ...result.assets[0], uri: cropped.uri, base64: null }] };
-            const response = await fetch(cropped.uri);
-            const blob = await response.blob();
-            const b64 = await new Promise((res) => {
-              const r = new FileReader();
-              r.onloadend = () => res(r.result.split(',')[1]);
-              r.readAsDataURL(blob);
+            // Use expo-file-system to read base64
+            const fs = require('expo-file-system');
+            const b64 = await fs.readAsStringAsync(cropped.uri, {
+              encoding: fs.EncodingType.Base64,
             });
             result.assets[0].base64 = b64;
           } else { return; }
@@ -204,12 +202,10 @@ const ScanModal = ({ visible, onClose, onResult, theme, t, rtl }) => {
           });
           if (cropped) {
             result = { canceled: false, assets: [{ ...result.assets[0], uri: cropped.uri, base64: null }] };
-            const response = await fetch(cropped.uri);
-            const blob = await response.blob();
-            const b64 = await new Promise((res) => {
-              const r = new FileReader();
-              r.onloadend = () => res(r.result.split(',')[1]);
-              r.readAsDataURL(blob);
+            // Use expo-file-system to read base64
+            const fs = require('expo-file-system');
+            const b64 = await fs.readAsStringAsync(cropped.uri, {
+              encoding: fs.EncodingType.Base64,
             });
             result.assets[0].base64 = b64;
           } else { return; }
