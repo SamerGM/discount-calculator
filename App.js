@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet, Text, View, TextInput, TouchableOpacity,
   ScrollView, StatusBar, KeyboardAvoidingView, Platform,
@@ -7,9 +7,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 
-// ─── PASTE YOUR GOOGLE VISION API KEY HERE ───────────────────────────────────
 const VISION_API_KEY = 'AIzaSyCdzCuPTWjo1j4HXjr6ZIgKtlZNNM_7YxE';
-// ─────────────────────────────────────────────────────────────────────────────
 
 const lightTheme = {
   bg: '#F8FAFC', surface: '#FFFFFF', surfaceAlt: '#F1F5F9', border: '#E2E8F0',
@@ -17,6 +15,7 @@ const lightTheme = {
   accent: '#3B82F6', accentLight: '#EFF6FF', accent2: '#8B5CF6', accent2Light: '#F5F3FF',
   success: '#10B981', successLight: '#ECFDF5', danger: '#EF4444', dangerLight: '#FEF2F2',
   label: '#334155', tabActive: '#3B82F6', tabInactive: '#94A3B8', tabBorder: '#E2E8F0',
+  coupon: '#0EA5E9', couponLight: '#E0F2FE',
 };
 const darkTheme = {
   bg: '#0F172A', surface: '#1E293B', surfaceAlt: '#0F172A', border: '#334155',
@@ -24,6 +23,7 @@ const darkTheme = {
   accent: '#60A5FA', accentLight: '#1E3A5F', accent2: '#A78BFA', accent2Light: '#2E1065',
   success: '#34D399', successLight: '#064E3B', danger: '#F87171', dangerLight: '#450A0A',
   label: '#CBD5E1', tabActive: '#60A5FA', tabInactive: '#475569', tabBorder: '#334155',
+  coupon: '#38BDF8', couponLight: '#0C4A6E',
 };
 
 const translations = {
@@ -31,14 +31,18 @@ const translations = {
     appTitle: 'Discount Calculator',
     simple: 'Simple', advanced: 'Advanced',
     originalPrice: 'Original Price ($)', discount: 'Discount (%)',
-    firstDiscount: 'First Discount (%)', extraDiscount: 'Extra Discount (% on top)',
-    salesTax: 'Sales Tax (%) — optional', finalPrice: 'FINAL PRICE',
+    firstDiscount: 'First Discount (%)', secondDiscount: 'Second Discount (%)',
+    salesTax: 'Sales Tax (%) — optional',
+    additionalDiscount: 'ADDITIONAL DISCOUNT',
+    couponAmount: 'Coupon Discount ($) — optional',
+    couponPct: 'Coupon Percentage (%) — optional',
+    finalPrice: 'FINAL PRICE',
     totalSavings: 'TOTAL SAVINGS', youSave: 'You Save', offOriginal: '% off original',
     original: 'ORIGINAL', discountLabel: 'DISCOUNT', final: 'FINAL', clear: 'Clear',
     enterToSeeSavings: 'Enter values above to see savings',
     enterToSeeBreakdown: 'Enter values above to see the breakdown',
-    step1: 'Step 1 — First Discount', step2: 'Step 2 — Extra Discount', step3: 'Step 3 — Tax',
-    saved: 'Saved', priceBefore: 'Price before extra',
+    step1: 'Step 1 — First Discount', step2: 'Step 2 — Second Discount', step3: 'Step 3 — Tax',
+    saved: 'Saved', priceBefore: 'Price before second',
     priceAfterStep1: 'Price after step 1', priceAfterStep2: 'Price after step 2',
     taxAmount: 'Tax amount', equivalentDiscount: 'Equivalent Single Discount',
     stackedNote: '⚠️ Stacked discounts are applied one after another — not added together.',
@@ -46,12 +50,13 @@ const translations = {
     stackedNotEqual: (d1, d2, sum) => `${d1}% + ${d2}% stacked ≠ ${sum}% flat`,
     originalPriceRow: 'Original Price', discountRow: (d) => `Discount (${d}%)`,
     taxRow: (t) => `Tax (${t}%)`, extraSaved: 'Extra saved',
+    couponAmountRow: (a) => `Coupon ($${a})`,
+    couponPctRow: (p) => `Coupon (${p}%)`,
     scanPhoto: 'Scan Price Tag',
     takePhoto: '📷  Take Photo',
     chooseGallery: '🖼️  Choose from Gallery',
     cancel: 'Cancel',
     scanning: 'Scanning image...',
-    scanSuccess: 'Scan complete!',
     scanFailed: 'Could not detect price. Please enter manually.',
     scanTitle: 'Scan Price Tag',
     scanSubtitle: 'Take a photo or choose from gallery to auto-fill the price and discount',
@@ -60,13 +65,17 @@ const translations = {
     appTitle: 'Discount Calculator',
     simple: 'بسيط', advanced: 'خصم مركب',
     originalPrice: 'السعر الأصلي ($)', discount: 'نسبة الخصم (%)',
-    firstDiscount: 'الخصم الأول (%)', extraDiscount: 'خصم إضافي (% على السعر المخفض)',
-    salesTax: 'الضريبة (%) — اختياري', finalPrice: 'السعر النهائي',
+    firstDiscount: 'الخصم الأول (%)', secondDiscount: 'الخصم الثاني (%)',
+    salesTax: 'الضريبة (%) — اختياري',
+    additionalDiscount: 'خصم إضافي',
+    couponAmount: 'كوبون بقيمة ($) — اختياري',
+    couponPct: 'كوبون بنسبة (%) — اختياري',
+    finalPrice: 'السعر النهائي',
     totalSavings: 'إجمالي التوفير', youSave: 'وفرت', offOriginal: '% من السعر الأصلي',
     original: 'الأصلي', discountLabel: 'الخصم', final: 'النهائي', clear: 'مسح',
     enterToSeeSavings: '', enterToSeeBreakdown: 'أدخل القيم أعلاه لرؤية التفاصيل',
-    step1: 'الخطوة 1 — الخصم الأول', step2: 'الخطوة 2 — الخصم الإضافي', step3: 'الخطوة 3 — الضريبة',
-    saved: 'التوفير', priceBefore: 'السعر قبل الخصم الإضافي',
+    step1: 'الخطوة 1 — الخصم الأول', step2: 'الخطوة 2 — الخصم الثاني', step3: 'الخطوة 3 — الضريبة',
+    saved: 'التوفير', priceBefore: 'السعر قبل الخصم الثاني',
     priceAfterStep1: 'السعر بعد الخطوة 1', priceAfterStep2: 'السعر بعد الخطوة 2',
     taxAmount: 'مبلغ الضريبة', equivalentDiscount: 'الخصم الفعلي',
     stackedNote: '⚠️ الخصومات المتراكمة تُطبَّق بالتسلسل — وليس بالجمع.',
@@ -74,12 +83,13 @@ const translations = {
     stackedNotEqual: (d1, d2, sum) => `${d1}% + ${d2}% متراكم ≠ ${sum}% مباشر`,
     originalPriceRow: 'السعر الأصلي', discountRow: (d) => `الخصم (${d}%)`,
     taxRow: (t) => `الضريبة (${t}%)`, extraSaved: 'التوفير الإضافي',
+    couponAmountRow: (a) => `كوبون ($${a})`,
+    couponPctRow: (p) => `كوبون (${p}%)`,
     scanPhoto: 'مسح بطاقة السعر',
     takePhoto: '📷  التقاط صورة',
     chooseGallery: '🖼️  اختيار من المعرض',
     cancel: 'إلغاء',
     scanning: 'جارٍ مسح الصورة...',
-    scanSuccess: 'اكتمل المسح!',
     scanFailed: 'لم يتم اكتشاف السعر. يرجى الإدخال يدوياً.',
     scanTitle: 'مسح بطاقة السعر',
     scanSubtitle: 'التقط صورة أو اختر من المعرض لملء السعر والخصم تلقائياً',
@@ -89,45 +99,30 @@ const translations = {
 const parseNum = (val) => { const n = parseFloat(val); return isNaN(n) ? 0 : n; };
 const fmt = (n) => n.toFixed(2);
 
-// ─── OCR Helper ───────────────────────────────────────────────────────────────
 const extractPriceAndDiscount = (text) => {
-  // Extract price — look for patterns like $49.99, 49.99, 49,99
   const pricePatterns = [
     /\$\s*(\d+(?:[.,]\d{1,2})?)/,
     /(\d+(?:[.,]\d{2}))\s*(?:USD|AED|EUR|GBP)/i,
     /(?:price|total|amount|سعر|المبلغ)[:\s]*(\d+(?:[.,]\d{1,2})?)/i,
     /(\d{1,6}(?:[.,]\d{2}))/,
   ];
-
-  // Extract discount — look for patterns like 20%, 20% OFF, خصم 20%
   const discountPatterns = [
     /(\d{1,2})\s*%\s*(?:off|discount|sale|خصم|تخفيض)/i,
     /(?:off|discount|save|خصم|تخفيض)\s*(\d{1,2})\s*%/i,
     /(\d{1,2})\s*%/,
   ];
-
-  let price = '';
-  let discount = '';
-
+  let price = '', discount = '';
   for (const pattern of pricePatterns) {
     const match = text.match(pattern);
-    if (match) {
-      price = match[1].replace(',', '.');
-      break;
-    }
+    if (match) { price = match[1].replace(',', '.'); break; }
   }
-
   for (const pattern of discountPatterns) {
     const match = text.match(pattern);
     if (match) {
       const val = parseInt(match[1]);
-      if (val > 0 && val <= 100) {
-        discount = val.toString();
-        break;
-      }
+      if (val > 0 && val <= 100) { discount = val.toString(); break; }
     }
   }
-
   return { price, discount };
 };
 
@@ -138,10 +133,7 @@ const scanImageWithVisionAPI = async (base64Image) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        requests: [{
-          image: { content: base64Image },
-          features: [{ type: 'TEXT_DETECTION', maxResults: 1 }],
-        }],
+        requests: [{ image: { content: base64Image }, features: [{ type: 'TEXT_DETECTION', maxResults: 1 }] }],
       }),
     }
   );
@@ -150,57 +142,32 @@ const scanImageWithVisionAPI = async (base64Image) => {
   return extractPriceAndDiscount(text);
 };
 
-// ─── Scan Modal ───────────────────────────────────────────────────────────────
 const ScanModal = ({ visible, onClose, onResult, theme, t, rtl }) => {
   const [scanning, setScanning] = useState(false);
-
   const handleScan = async (useCamera) => {
     try {
       let result;
       if (useCamera) {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permission needed', 'Camera permission is required.');
-          return;
-        }
-        result = await ImagePicker.launchCameraAsync({
-          base64: true,
-          quality: 0.5,
-          allowsEditing: false,
-          exif: false,
-        });
+        if (status !== 'granted') { Alert.alert('Permission needed', 'Camera permission is required.'); return; }
+        result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.5, allowsEditing: false, exif: false });
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permission needed', 'Gallery permission is required.');
-          return;
-        }
-        result = await ImagePicker.launchImageLibraryAsync({
-          base64: true,
-          quality: 0.5,
-          allowsEditing: false,
-          exif: false,
-        });
+        if (status !== 'granted') { Alert.alert('Permission needed', 'Gallery permission is required.'); return; }
+        result = await ImagePicker.launchImageLibraryAsync({ base64: true, quality: 0.5, allowsEditing: false, exif: false });
       }
-
       if (!result.canceled && result.assets?.[0]?.base64) {
         setScanning(true);
         const { price, discount } = await scanImageWithVisionAPI(result.assets[0].base64);
         setScanning(false);
-
-        if (price || discount) {
-          onResult({ price, discount });
-          onClose();
-        } else {
-          Alert.alert(t.scanFailed);
-        }
+        if (price || discount) { onResult({ price, discount }); onClose(); }
+        else { Alert.alert(t.scanFailed); }
       }
     } catch (e) {
       setScanning(false);
-      Alert.alert('Scan Error', e.message || 'Network error. Please check your internet connection and try again.');
+      Alert.alert('Error', e.message || 'Something went wrong. Please try again.');
     }
   };
-
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
@@ -214,28 +181,13 @@ const ScanModal = ({ visible, onClose, onResult, theme, t, rtl }) => {
             <>
               <Text style={[styles.modalTitle, { color: theme.text }]}>{t.scanTitle}</Text>
               <Text style={[styles.modalSubtitle, { color: theme.textSecondary }]}>{t.scanSubtitle}</Text>
-
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: theme.accent }]}
-                onPress={() => handleScan(true)}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: theme.accent }]} onPress={() => handleScan(true)} activeOpacity={0.8}>
                 <Text style={styles.modalBtnText}>{t.takePhoto}</Text>
               </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: theme.accent2 }]}
-                onPress={() => handleScan(false)}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: theme.accent2 }]} onPress={() => handleScan(false)} activeOpacity={0.8}>
                 <Text style={styles.modalBtnText}>{t.chooseGallery}</Text>
               </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalCancelBtn, { borderColor: theme.border }]}
-                onPress={onClose}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={[styles.modalCancelBtn, { borderColor: theme.border }]} onPress={onClose} activeOpacity={0.8}>
                 <Text style={[styles.modalCancelText, { color: theme.textSecondary }]}>{t.cancel}</Text>
               </TouchableOpacity>
             </>
@@ -246,22 +198,17 @@ const ScanModal = ({ visible, onClose, onResult, theme, t, rtl }) => {
   );
 };
 
-// ─── Input Field with Scan Button ─────────────────────────────────────────────
-const InputField = ({ label, value, onChange, placeholder, theme, rtl, onScan }) => (
+const InputField = ({ label, value, onChange, placeholder, theme, rtl, onScan, coupon }) => (
   <View style={styles.fieldWrap}>
-    <Text style={[styles.label, { color: theme.label, textAlign: rtl ? 'right' : 'left' }]}>{label}</Text>
+    <Text style={[styles.label, { color: coupon ? theme.coupon : theme.label, textAlign: rtl ? 'right' : 'left' }]}>{label}</Text>
     <View style={styles.inputRow}>
       <TextInput
-        style={[styles.input, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, color: theme.text, textAlign: rtl ? 'right' : 'left', flex: 1 }]}
+        style={[styles.input, { backgroundColor: coupon ? theme.couponLight : theme.surfaceAlt, borderColor: coupon ? theme.coupon : theme.border, color: theme.text, textAlign: rtl ? 'right' : 'left', flex: 1 }]}
         value={value} onChangeText={onChange} placeholder={placeholder}
         placeholderTextColor={theme.textMuted} keyboardType="decimal-pad" maxLength={10}
       />
       {onScan && (
-        <TouchableOpacity
-          style={[styles.scanBtn, { backgroundColor: theme.accentLight, borderColor: theme.accent }]}
-          onPress={onScan}
-          activeOpacity={0.75}
-        >
+        <TouchableOpacity style={[styles.scanBtn, { backgroundColor: theme.accentLight, borderColor: theme.accent }]} onPress={onScan} activeOpacity={0.75}>
           <Text style={[styles.scanBtnText, { color: theme.accent }]}>📷</Text>
         </TouchableOpacity>
       )}
@@ -276,7 +223,7 @@ const ResultRow = ({ label, value, theme, accent, negative, rtl }) => (
   </View>
 );
 
-const SavingsBox = ({ theme, p, discountAmount, finalPrice, savingsPct, totalSavings, totalSavingsPct, rtl, t }) => (
+const SavingsBox = ({ theme, p, finalPrice, totalSavings, totalSavingsPct, savingsPct, discountAmount, rtl, t }) => (
   <View style={[styles.savingsBox, { backgroundColor: theme.successLight, borderColor: theme.success }]}>
     <Text style={[styles.savingsBoxTitle, { color: theme.success, textAlign: rtl ? 'right' : 'left' }]}>{t.totalSavings}</Text>
     <View style={[styles.savingsDividerLine, { backgroundColor: theme.success }]} />
@@ -284,10 +231,10 @@ const SavingsBox = ({ theme, p, discountAmount, finalPrice, savingsPct, totalSav
       <View>
         <Text style={[styles.savingsLabel, { color: theme.success, textAlign: rtl ? 'right' : 'left' }]}>{t.youSave}</Text>
         <Text style={[styles.savingsPct, { color: theme.success, textAlign: rtl ? 'right' : 'left' }]}>
-          {(totalSavingsPct ?? savingsPct).toFixed(1)}{t.offOriginal}
+          {(totalSavingsPct ?? savingsPct ?? 0).toFixed(1)}{t.offOriginal}
         </Text>
       </View>
-      <Text style={[styles.savingsValue, { color: theme.success }]}>${fmt(totalSavings ?? discountAmount)}</Text>
+      <Text style={[styles.savingsValue, { color: theme.success }]}>${fmt(totalSavings ?? discountAmount ?? 0)}</Text>
     </View>
     <View style={[styles.savingsBreakdownRow, { borderTopColor: theme.success, flexDirection: rtl ? 'row-reverse' : 'row' }]}>
       <View style={styles.savingsStatItem}>
@@ -297,7 +244,7 @@ const SavingsBox = ({ theme, p, discountAmount, finalPrice, savingsPct, totalSav
       <View style={[styles.savingsStatDivider, { backgroundColor: theme.success }]} />
       <View style={styles.savingsStatItem}>
         <Text style={[styles.savingsStatLabel, { color: theme.success }]}>{t.discountLabel}</Text>
-        <Text style={[styles.savingsStatValue, { color: theme.success }]}>−${fmt(totalSavings ?? discountAmount)}</Text>
+        <Text style={[styles.savingsStatValue, { color: theme.success }]}>−${fmt(totalSavings ?? discountAmount ?? 0)}</Text>
       </View>
       <View style={[styles.savingsStatDivider, { backgroundColor: theme.success }]} />
       <View style={styles.savingsStatItem}>
@@ -313,49 +260,61 @@ const SimpleTab = ({ theme, rtl, t }) => {
   const [price, setPrice] = useState('');
   const [discount, setDiscount] = useState('');
   const [tax, setTax] = useState('');
+  const [couponAmount, setCouponAmount] = useState('');
+  const [couponPct, setCouponPct] = useState('');
   const [scanVisible, setScanVisible] = useState(false);
 
-  const p = parseNum(price), d = Math.min(parseNum(discount), 100), tv = parseNum(tax);
-  const discountAmount = p * (d / 100);
-  const afterDiscount = p - discountAmount;
-  const taxAmount = afterDiscount * (tv / 100);
-  const finalPrice = afterDiscount + taxAmount;
-  const savingsPct = p > 0 ? (discountAmount / p) * 100 : 0;
+  const p = parseNum(price);
+  const d = Math.min(parseNum(discount), 100);
+  const tv = parseNum(tax);
+  const ca = parseNum(couponAmount);
+  const cp = Math.min(parseNum(couponPct), 100);
+
+  const afterDiscount = p * (1 - d / 100);
+  const afterCouponPct = afterDiscount * (1 - cp / 100);
+  const afterCouponAmount = Math.max(0, afterCouponPct - ca);
+  const taxAmount = afterCouponAmount * (tv / 100);
+  const finalPrice = afterCouponAmount + taxAmount;
+  const totalSavings = p - finalPrice;
+  const totalSavingsPct = p > 0 ? (totalSavings / p) * 100 : 0;
   const hasValues = p > 0 || d > 0;
 
   return (
     <ScrollView contentContainerStyle={styles.tabContent} keyboardShouldPersistTaps="handled">
-      <ScanModal
-        visible={scanVisible}
-        onClose={() => setScanVisible(false)}
-        onResult={({ price: p, discount: d }) => {
-          if (p) setPrice(p);
-          if (d) setDiscount(d);
-        }}
-        theme={theme} t={t} rtl={rtl}
-      />
+      <ScanModal visible={scanVisible} onClose={() => setScanVisible(false)}
+        onResult={({ price: pr, discount: di }) => { if (pr) setPrice(pr); if (di) setDiscount(di); }}
+        theme={theme} t={t} rtl={rtl} />
 
       <View style={[styles.card, { backgroundColor: theme.surface }]}>
         <InputField label={t.originalPrice} value={price} onChange={setPrice} placeholder="0.00" theme={theme} rtl={rtl} onScan={() => setScanVisible(true)} />
         <InputField label={t.discount} value={discount} onChange={v => setDiscount(v.replace(/[^0-9.]/g, ''))} placeholder="0" theme={theme} rtl={rtl} />
         <InputField label={t.salesTax} value={tax} onChange={setTax} placeholder="0" theme={theme} rtl={rtl} />
+
+        {/* Additional Discount Section */}
+        <View style={[styles.sectionDivider, { borderColor: theme.coupon }]}>
+          <Text style={[styles.sectionLabel, { color: theme.coupon }]}>{t.additionalDiscount}</Text>
+        </View>
+        <InputField label={t.couponAmount} value={couponAmount} onChange={setCouponAmount} placeholder="0.00" theme={theme} rtl={rtl} coupon />
+        <InputField label={t.couponPct} value={couponPct} onChange={v => setCouponPct(v.replace(/[^0-9.]/g, ''))} placeholder="0" theme={theme} rtl={rtl} coupon />
       </View>
 
       <View style={[styles.card, { backgroundColor: theme.surface }]}>
         <ResultRow label={t.originalPriceRow} value={`$${fmt(p)}`} theme={theme} rtl={rtl} />
-        <ResultRow label={t.discountRow(d)} value={hasValues ? `− $${fmt(discountAmount)}` : '—'} theme={theme} negative={hasValues && discountAmount > 0} rtl={rtl} />
+        <ResultRow label={t.discountRow(d)} value={hasValues ? `− $${fmt(p - afterDiscount)}` : '—'} theme={theme} negative={hasValues && d > 0} rtl={rtl} />
+        {cp > 0 && <ResultRow label={t.couponPctRow(cp)} value={hasValues ? `− $${fmt(afterDiscount - afterCouponPct)}` : '—'} theme={theme} negative rtl={rtl} />}
+        {ca > 0 && <ResultRow label={t.couponAmountRow(fmt(ca))} value={hasValues ? `− $${fmt(ca)}` : '—'} theme={theme} negative rtl={rtl} />}
         {tv > 0 && <ResultRow label={t.taxRow(tv)} value={hasValues ? `+ $${fmt(taxAmount)}` : '—'} theme={theme} rtl={rtl} />}
         <View style={[styles.resultDivider, { backgroundColor: theme.border }]} />
         <View style={[styles.finalPriceBox, { backgroundColor: theme.accentLight, borderColor: theme.accent }]}>
           <Text style={[styles.finalPriceLabel, { color: theme.accent }]}>{t.finalPrice}</Text>
           <Text style={[styles.finalPriceValue, { color: theme.accent }]}>${fmt(finalPrice)}</Text>
         </View>
-        {hasValues && discountAmount > 0
-          ? <SavingsBox theme={theme} p={p} discountAmount={discountAmount} finalPrice={finalPrice} savingsPct={savingsPct} rtl={rtl} t={t} />
+        {hasValues && totalSavings > 0
+          ? <SavingsBox theme={theme} p={p} finalPrice={finalPrice} totalSavings={totalSavings} totalSavingsPct={totalSavingsPct} rtl={rtl} t={t} />
           : t.enterToSeeSavings ? <Text style={[styles.emptyHint, { color: theme.textMuted }]}>{t.enterToSeeSavings}</Text> : null}
         <TouchableOpacity
           style={[styles.clearBtn, { backgroundColor: hasValues ? theme.dangerLight : theme.surfaceAlt, borderColor: hasValues ? theme.danger : theme.border }]}
-          onPress={() => { setPrice(''); setDiscount(''); setTax(''); }} activeOpacity={0.75}>
+          onPress={() => { setPrice(''); setDiscount(''); setTax(''); setCouponAmount(''); setCouponPct(''); }} activeOpacity={0.75}>
           <Text style={[styles.clearBtnText, { color: hasValues ? theme.danger : theme.textMuted }]}>{t.clear}</Text>
         </TouchableOpacity>
       </View>
@@ -369,34 +328,49 @@ const AdvancedTab = ({ theme, rtl, t }) => {
   const [discount1, setDiscount1] = useState('');
   const [discount2, setDiscount2] = useState('');
   const [tax, setTax] = useState('');
+  const [couponAmount, setCouponAmount] = useState('');
+  const [couponPct, setCouponPct] = useState('');
   const [scanVisible, setScanVisible] = useState(false);
 
-  const p = parseNum(price), d1 = Math.min(parseNum(discount1), 100), d2 = Math.min(parseNum(discount2), 100), tv = parseNum(tax);
-  const savedByD1 = p * (d1 / 100), afterDiscount1 = p - savedByD1;
-  const savedByD2 = afterDiscount1 * (d2 / 100), afterDiscount2 = afterDiscount1 - savedByD2;
-  const taxAmount = afterDiscount2 * (tv / 100), finalPrice = afterDiscount2 + taxAmount;
-  const totalSavings = savedByD1 + savedByD2, totalSavingsPct = p > 0 ? (totalSavings / p) * 100 : 0;
+  const p = parseNum(price);
+  const d1 = Math.min(parseNum(discount1), 100);
+  const d2 = Math.min(parseNum(discount2), 100);
+  const tv = parseNum(tax);
+  const ca = parseNum(couponAmount);
+  const cp = Math.min(parseNum(couponPct), 100);
+
+  const savedByD1 = p * (d1 / 100);
+  const afterDiscount1 = p - savedByD1;
+  const savedByD2 = afterDiscount1 * (d2 / 100);
+  const afterDiscount2 = afterDiscount1 - savedByD2;
+  const afterCouponPct = afterDiscount2 * (1 - cp / 100);
+  const afterCouponAmount = Math.max(0, afterCouponPct - ca);
+  const taxAmount = afterCouponAmount * (tv / 100);
+  const finalPrice = afterCouponAmount + taxAmount;
+  const totalSavings = p - finalPrice;
+  const totalSavingsPct = p > 0 ? (totalSavings / p) * 100 : 0;
   const equivalentDiscount = p > 0 ? (totalSavings / p) * 100 : 0;
   const hasValues = p > 0 || d1 > 0 || d2 > 0;
   const lBorder = (color) => ({ borderLeftWidth: rtl ? 0 : 3, borderRightWidth: rtl ? 3 : 0, borderLeftColor: color, borderRightColor: color, paddingLeft: rtl ? 0 : 12, paddingRight: rtl ? 12 : 0 });
 
   return (
     <ScrollView contentContainerStyle={styles.tabContent} keyboardShouldPersistTaps="handled">
-      <ScanModal
-        visible={scanVisible}
-        onClose={() => setScanVisible(false)}
-        onResult={({ price: p, discount: d }) => {
-          if (p) setPrice(p);
-          if (d) setDiscount1(d);
-        }}
-        theme={theme} t={t} rtl={rtl}
-      />
+      <ScanModal visible={scanVisible} onClose={() => setScanVisible(false)}
+        onResult={({ price: pr, discount: di }) => { if (pr) setPrice(pr); if (di) setDiscount1(di); }}
+        theme={theme} t={t} rtl={rtl} />
 
       <View style={[styles.card, { backgroundColor: theme.surface }]}>
         <InputField label={t.originalPrice} value={price} onChange={setPrice} placeholder="0.00" theme={theme} rtl={rtl} onScan={() => setScanVisible(true)} />
         <InputField label={t.firstDiscount} value={discount1} onChange={v => setDiscount1(v.replace(/[^0-9.]/g, ''))} placeholder="0" theme={theme} rtl={rtl} />
-        <InputField label={t.extraDiscount} value={discount2} onChange={v => setDiscount2(v.replace(/[^0-9.]/g, ''))} placeholder="0" theme={theme} rtl={rtl} />
+        <InputField label={t.secondDiscount} value={discount2} onChange={v => setDiscount2(v.replace(/[^0-9.]/g, ''))} placeholder="0" theme={theme} rtl={rtl} />
         <InputField label={t.salesTax} value={tax} onChange={setTax} placeholder="0" theme={theme} rtl={rtl} />
+
+        {/* Additional Discount Section */}
+        <View style={[styles.sectionDivider, { borderColor: theme.coupon }]}>
+          <Text style={[styles.sectionLabel, { color: theme.coupon }]}>{t.additionalDiscount}</Text>
+        </View>
+        <InputField label={t.couponAmount} value={couponAmount} onChange={setCouponAmount} placeholder="0.00" theme={theme} rtl={rtl} coupon />
+        <InputField label={t.couponPct} value={couponPct} onChange={v => setCouponPct(v.replace(/[^0-9.]/g, ''))} placeholder="0" theme={theme} rtl={rtl} coupon />
       </View>
 
       <View style={[styles.infoBox, { backgroundColor: theme.accent2Light, borderColor: theme.accent2 }]}>
@@ -418,6 +392,13 @@ const AdvancedTab = ({ theme, rtl, t }) => {
           <ResultRow label={t.extraSaved} value={hasValues ? `− $${fmt(savedByD2)}` : '—'} theme={theme} negative={hasValues && savedByD2 > 0} rtl={rtl} />
           <ResultRow label={t.priceAfterStep2} value={`$${fmt(afterDiscount2)}`} theme={theme} accent rtl={rtl} />
         </View>
+        {(cp > 0 || ca > 0) && (
+          <View style={[styles.stepBlock, lBorder(theme.coupon), { marginTop: 12 }]}>
+            <Text style={[styles.stepBlockTitle, { color: theme.coupon, textAlign: rtl ? 'right' : 'left' }]}>{t.additionalDiscount}</Text>
+            {cp > 0 && <ResultRow label={t.couponPctRow(cp)} value={hasValues ? `− $${fmt(afterDiscount2 - afterCouponPct)}` : '—'} theme={theme} negative rtl={rtl} />}
+            {ca > 0 && <ResultRow label={t.couponAmountRow(fmt(ca))} value={hasValues ? `− $${fmt(ca)}` : '—'} theme={theme} negative rtl={rtl} />}
+          </View>
+        )}
         {tv > 0 && (
           <View style={[styles.stepBlock, lBorder(theme.success), { marginTop: 12 }]}>
             <Text style={[styles.stepBlockTitle, { color: theme.success, textAlign: rtl ? 'right' : 'left' }]}>{t.step3} ({tv}%)</Text>
@@ -441,7 +422,7 @@ const AdvancedTab = ({ theme, rtl, t }) => {
           : <Text style={[styles.emptyHint, { color: theme.textMuted }]}>{t.enterToSeeBreakdown}</Text>}
         <TouchableOpacity
           style={[styles.clearBtn, { backgroundColor: hasValues ? theme.dangerLight : theme.surfaceAlt, borderColor: hasValues ? theme.danger : theme.border }]}
-          onPress={() => { setPrice(''); setDiscount1(''); setDiscount2(''); setTax(''); }} activeOpacity={0.75}>
+          onPress={() => { setPrice(''); setDiscount1(''); setDiscount2(''); setTax(''); setCouponAmount(''); setCouponPct(''); }} activeOpacity={0.75}>
           <Text style={[styles.clearBtnText, { color: hasValues ? theme.danger : theme.textMuted }]}>{t.clear}</Text>
         </TouchableOpacity>
       </View>
@@ -464,9 +445,7 @@ export default function App() {
         const savedLang = await AsyncStorage.getItem('lang');
         setIsDark(savedTheme !== null ? savedTheme === 'dark' : systemScheme === 'dark');
         if (savedLang !== null) setLang(savedLang);
-      } catch (e) {
-        setIsDark(systemScheme === 'dark');
-      }
+      } catch (e) { setIsDark(systemScheme === 'dark'); }
       setLoaded(true);
     };
     loadPrefs();
@@ -493,23 +472,18 @@ export default function App() {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.bg} />
       <View style={[styles.container, { backgroundColor: theme.bg }]}>
-
-        {/* Header */}
         <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
           <TouchableOpacity
             style={[styles.themeToggle, { backgroundColor: isDark ? '#334155' : '#CBD5E1', borderColor: isDark ? '#60A5FA' : '#3B82F6' }]}
-            onPress={handleThemeToggle} activeOpacity={0.8}
-          >
+            onPress={handleThemeToggle} activeOpacity={0.8}>
             <View style={[styles.toggleKnob, { backgroundColor: isDark ? '#0F172A' : '#FFFFFF', alignSelf: isDark ? 'flex-end' : 'flex-start', borderColor: isDark ? '#60A5FA' : '#3B82F6' }]}>
               <Text style={styles.toggleEmoji}>{isDark ? '🌙' : '☀️'}</Text>
             </View>
           </TouchableOpacity>
-
           <View style={styles.headerCenter}>
             <Text style={styles.headerLogo}>🏷️</Text>
             <Text style={[styles.headerTitle, { color: theme.text }]}>{t.appTitle}</Text>
           </View>
-
           <View style={styles.langToggle}>
             <TouchableOpacity style={[styles.langBtn, { backgroundColor: lang === 'en' ? theme.accent : theme.surfaceAlt, borderColor: lang === 'en' ? theme.accent : theme.border }]} onPress={() => handleLangChange('en')}>
               <Text style={[styles.langBtnText, { color: lang === 'en' ? '#fff' : theme.textSecondary }]}>EN</Text>
@@ -519,8 +493,6 @@ export default function App() {
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* Tab Bar */}
         <View style={[styles.tabBar, { backgroundColor: theme.surface, borderBottomColor: theme.tabBorder, flexDirection: rtl ? 'row-reverse' : 'row' }]}>
           <TouchableOpacity style={[styles.tab, activeTab === 'simple' && { borderBottomColor: theme.tabActive, borderBottomWidth: 2 }]} onPress={() => setActiveTab('simple')}>
             <Text style={[styles.tabText, { color: activeTab === 'simple' ? theme.tabActive : theme.tabInactive }]}>{t.simple}</Text>
@@ -529,14 +501,12 @@ export default function App() {
             <Text style={[styles.tabText, { color: activeTab === 'stacked' ? theme.tabActive : theme.tabInactive }]}>{t.advanced}</Text>
           </TouchableOpacity>
         </View>
-
         {activeTab === 'simple' ? <SimpleTab theme={theme} rtl={rtl} t={t} /> : <AdvancedTab theme={theme} rtl={rtl} t={t} />}
       </View>
     </KeyboardAvoidingView>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingTop: 52, paddingBottom: 14, paddingHorizontal: 14, borderBottomWidth: 1, alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
@@ -554,6 +524,8 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 15, fontWeight: '700' },
   tabContent: { padding: 16, gap: 12 },
   card: { borderRadius: 16, padding: 16, gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2 },
+  sectionDivider: { borderTopWidth: 1.5, borderStyle: 'dashed', paddingTop: 10, marginTop: 2 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2 },
   fieldWrap: { gap: 6 },
   label: { fontSize: 13, fontWeight: '600', letterSpacing: 0.2 },
   inputRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
@@ -590,7 +562,6 @@ const styles = StyleSheet.create({
   equivalentSub: { fontSize: 12, fontWeight: '500', opacity: 0.8 },
   infoBox: { borderRadius: 12, borderWidth: 1, padding: 12 },
   infoText: { fontSize: 13, fontWeight: '500', lineHeight: 18 },
-  // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalContainer: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 28, gap: 12 },
   modalTitle: { fontSize: 20, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
