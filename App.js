@@ -1,104 +1,126 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  StyleSheet, Text, View, TextInput, TouchableOpacity,
+  StyleSheet, Text, View, TextInput, Pressable,
   ScrollView, StatusBar, KeyboardAvoidingView, Platform,
   useColorScheme, Modal, Alert, ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 
 const VISION_API_KEY = 'AIzaSyCdzCuPTWjo1j4HXjr6ZIgKtlZNNM_7YxE';
 
+// ─── Theme ────────────────────────────────────────────────────────────────────
 const lightTheme = {
-  bg: '#F8FAFC', surface: '#FFFFFF', surfaceAlt: '#F1F5F9', border: '#E2E8F0',
-  borderFocus: '#3B82F6', text: '#0F172A', textSecondary: '#64748B', textMuted: '#94A3B8',
-  accent: '#3B82F6', accentLight: '#EFF6FF', accent2: '#8B5CF6', accent2Light: '#F5F3FF',
-  success: '#10B981', successLight: '#ECFDF5', danger: '#EF4444', dangerLight: '#FEF2F2',
-  label: '#334155', tabActive: '#3B82F6', tabInactive: '#94A3B8', tabBorder: '#E2E8F0',
-  coupon: '#0EA5E9', couponLight: '#E0F2FE',
+  bg: '#F4F5FB', surface: '#FFFFFF', surfaceAlt: '#F1F3F9', border: '#E4E7F0',
+  text: '#111827', textSecondary: '#6B7280', textMuted: '#9CA3AF',
+  primary: '#4F46E5', primarySoft: '#EEF2FF', hero: '#4F46E5',
+  success: '#059669', successSoft: '#D1FAE5',
+  danger: '#DC2626', dangerSoft: '#FEE2E2',
+  coupon: '#0891B2', couponSoft: '#CFFAFE',
+  tax: '#D97706', taxSoft: '#FEF3C7',
 };
 const darkTheme = {
-  bg: '#0F172A', surface: '#1E293B', surfaceAlt: '#0F172A', border: '#334155',
-  borderFocus: '#60A5FA', text: '#F1F5F9', textSecondary: '#94A3B8', textMuted: '#475569',
-  accent: '#60A5FA', accentLight: '#1E3A5F', accent2: '#A78BFA', accent2Light: '#2E1065',
-  success: '#34D399', successLight: '#064E3B', danger: '#F87171', dangerLight: '#450A0A',
-  label: '#CBD5E1', tabActive: '#60A5FA', tabInactive: '#475569', tabBorder: '#334155',
-  coupon: '#38BDF8', couponLight: '#0C4A6E',
+  bg: '#0B0F1A', surface: '#151B2B', surfaceAlt: '#1C2438', border: '#273149',
+  text: '#F3F4F6', textSecondary: '#9CA3AF', textMuted: '#6B7280',
+  primary: '#818CF8', primarySoft: '#1E1B4B', hero: '#3730A3',
+  success: '#34D399', successSoft: '#064E3B',
+  danger: '#F87171', dangerSoft: '#450A0A',
+  coupon: '#22D3EE', couponSoft: '#083344',
+  tax: '#FBBF24', taxSoft: '#451A03',
 };
 
+// ─── Translations ─────────────────────────────────────────────────────────────
 const translations = {
   en: {
-    appTitle: 'Discount Calculator',
-    simple: 'Simple', advanced: 'Advanced',
-    originalPrice: 'Original Price ($)', discount: 'Discount (%)',
-    firstDiscount: 'First Discount (%)', secondDiscount: 'Second Discount (%)',
-    salesTax: 'Sales Tax (%) — optional',
-    additionalDiscount: 'ADDITIONAL DISCOUNT',
-    couponAmount: 'Coupon Discount ($) — optional',
-    couponPct: 'Coupon Percentage (%) — optional',
-    finalPrice: 'FINAL PRICE',
-    totalSavings: 'TOTAL SAVINGS', youSave: 'You Save', offOriginal: '% off original',
-    original: 'ORIGINAL', discountLabel: 'DISCOUNT', final: 'FINAL', clear: 'Clear',
-    enterToSeeSavings: 'Enter values above to see savings',
-    enterToSeeBreakdown: 'Enter values above to see the breakdown',
-    step1: 'Step 1 — First Discount', step2: 'Step 2 — Second Discount', step3: 'Step 3 — Tax',
-    saved: 'Saved', priceBefore: 'Price before second',
-    priceAfterStep1: 'Price after step 1', priceAfterStep2: 'Price after step 2',
-    taxAmount: 'Tax amount', equivalentDiscount: 'Equivalent Single Discount',
-    stackedNote: '⚠️ Stacked discounts are applied one after another — not added together.',
-    stackedNoteSuffix: (d1, d2, eq, sum) => `  ${d1}% + ${d2}% = ${eq}% effective, not ${sum}%.`,
-    stackedNotEqual: (d1, d2, sum) => `${d1}% + ${d2}% stacked ≠ ${sum}% flat`,
-    originalPriceRow: 'Original Price', discountRow: (d) => `Discount (${d}%)`,
-    taxRow: (t) => `Tax (${t}%)`, extraSaved: 'Extra saved',
-    couponAmountRow: (a) => `Coupon ($${a})`,
-    couponPctRow: (p) => `Coupon (${p}%)`,
-    scanPhoto: 'Scan Price Tag',
-    takePhoto: '📷  Take Photo',
-    chooseGallery: '🖼️  Choose from Gallery',
-    cancel: 'Cancel',
-    scanning: 'Scanning image...',
-    scanFailed: 'Could not detect price. Please enter manually.',
-    scanTitle: 'Scan Price Tag',
-    scanSubtitle: 'Take a photo or choose from gallery to auto-fill the price and discount',
+    appTitle: 'Shopping Calculator', appSubtitle: 'Discounts, coupons & tax',
+    simple: 'Simple', stacked: 'Stacked',
+    price: 'Price', scan: 'Scan',
+    discount: 'Discount', discounts: 'Discounts',
+    discountN: (n) => (n === 1 ? 'First discount' : 'Second discount'),
+    stackedHint: 'Applied one after another',
+    coupons: 'Coupons', couponHint: 'Percentage or fixed amount',
+    coupon: 'Coupon', addCoupon: 'Add coupon', noCoupons: 'No coupons added',
+    tax: 'Sales tax', optional: 'Optional',
+    breakdown: 'Breakdown', original: 'Original price', subtotal: 'Subtotal', total: 'Total',
+    emptyBreakdown: 'Your breakdown will appear here',
+    finalPrice: 'FINAL PRICE', reset: 'Reset',
+    youSave: (a, p) => `You save ${a} (${p}%)`,
+    inclTax: (a) => `incl. ${a} tax`,
+    enterPrice: 'Enter a price to get started',
+    effective: 'Effective discount',
+    stackedNote: (parts, eq) => `${parts} stacked = ${eq}% off — discounts apply one after another, they don't add up.`,
+    takePhoto: 'Take photo', chooseGallery: 'Choose from gallery', cancel: 'Cancel',
+    scanning: 'Scanning image...', scanFailed: 'Could not detect a price. Please enter it manually.',
+    scanTitle: 'Scan price tag',
+    scanSubtitle: 'Take a photo or pick one from your gallery to auto-fill the price and discount.',
   },
   ar: {
-    appTitle: 'Discount Calculator',
-    simple: 'بسيط', advanced: 'خصم مركب',
-    originalPrice: 'السعر الأصلي ($)', discount: 'نسبة الخصم (%)',
-    firstDiscount: 'الخصم الأول (%)', secondDiscount: 'الخصم الثاني (%)',
-    salesTax: 'الضريبة (%) — اختياري',
-    additionalDiscount: 'خصم إضافي',
-    couponAmount: 'كوبون بقيمة ($) — اختياري',
-    couponPct: 'كوبون بنسبة (%) — اختياري',
-    finalPrice: 'السعر النهائي',
-    totalSavings: 'إجمالي التوفير', youSave: 'وفرت', offOriginal: '% من السعر الأصلي',
-    original: 'الأصلي', discountLabel: 'الخصم', final: 'النهائي', clear: 'مسح',
-    enterToSeeSavings: '', enterToSeeBreakdown: 'أدخل القيم أعلاه لرؤية التفاصيل',
-    step1: 'الخطوة 1 — الخصم الأول', step2: 'الخطوة 2 — الخصم الثاني', step3: 'الخطوة 3 — الضريبة',
-    saved: 'التوفير', priceBefore: 'السعر قبل الخصم الثاني',
-    priceAfterStep1: 'السعر بعد الخطوة 1', priceAfterStep2: 'السعر بعد الخطوة 2',
-    taxAmount: 'مبلغ الضريبة', equivalentDiscount: 'الخصم الفعلي',
-    stackedNote: '⚠️ الخصومات المتراكمة تُطبَّق بالتسلسل — وليس بالجمع.',
-    stackedNoteSuffix: (d1, d2, eq, sum) => `  ${d1}% + ${d2}% = ${eq}% فعلياً، وليس ${sum}%.`,
-    stackedNotEqual: (d1, d2, sum) => `${d1}% + ${d2}% متراكم ≠ ${sum}% مباشر`,
-    originalPriceRow: 'السعر الأصلي', discountRow: (d) => `الخصم (${d}%)`,
-    taxRow: (t) => `الضريبة (${t}%)`, extraSaved: 'التوفير الإضافي',
-    couponAmountRow: (a) => `كوبون ($${a})`,
-    couponPctRow: (p) => `كوبون (${p}%)`,
-    scanPhoto: 'مسح بطاقة السعر',
-    takePhoto: '📷  التقاط صورة',
-    chooseGallery: '🖼️  اختيار من المعرض',
-    cancel: 'إلغاء',
-    scanning: 'جارٍ مسح الصورة...',
-    scanFailed: 'لم يتم اكتشاف السعر. يرجى الإدخال يدوياً.',
+    appTitle: 'حاسبة التسوق', appSubtitle: 'الخصومات والكوبونات والضريبة',
+    simple: 'بسيط', stacked: 'خصم مركب',
+    price: 'السعر', scan: 'تصوير',
+    discount: 'الخصم', discounts: 'الخصومات',
+    discountN: (n) => (n === 1 ? 'الخصم الأول' : 'الخصم الثاني'),
+    stackedHint: 'تُطبَّق بالتسلسل',
+    coupons: 'الكوبونات', couponHint: 'نسبة مئوية أو مبلغ ثابت',
+    coupon: 'كوبون', addCoupon: 'إضافة كوبون', noCoupons: 'لا توجد كوبونات',
+    tax: 'الضريبة', optional: 'اختياري',
+    breakdown: 'التفاصيل', original: 'السعر الأصلي', subtotal: 'المجموع قبل الضريبة', total: 'الإجمالي',
+    emptyBreakdown: 'ستظهر التفاصيل هنا',
+    finalPrice: 'السعر النهائي', reset: 'مسح الكل',
+    youSave: (a, p) => `وفّرت \u200E${a}\u200F (\u200E${p}%\u200F)`,
+    inclTax: (a) => `شامل ضريبة \u200E${a}\u200F`,
+    enterPrice: 'أدخل السعر للبدء',
+    effective: 'الخصم الفعلي',
+    stackedNote: (parts, eq) => `${parts} متراكم = ${eq}% فعلياً — الخصومات تُطبَّق بالتسلسل ولا تُجمع.`,
+    takePhoto: 'التقاط صورة', chooseGallery: 'اختيار من المعرض', cancel: 'إلغاء',
+    scanning: 'جارٍ مسح الصورة...', scanFailed: 'لم يتم اكتشاف السعر. يرجى الإدخال يدوياً.',
     scanTitle: 'مسح بطاقة السعر',
-    scanSubtitle: 'التقط صورة أو اختر من المعرض لملء السعر والخصم تلقائياً',
+    scanSubtitle: 'التقط صورة أو اختر من المعرض لملء السعر والخصم تلقائياً.',
   },
 };
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const parseNum = (val) => { const n = parseFloat(val); return isNaN(n) ? 0 : n; };
 const fmt = (n) => n.toFixed(2);
+const money = (n) => `$${fmt(n)}`;
+const trimNum = (n) => String(Math.round(n * 100) / 100);
+// Accept digits and a single decimal separator (comma is converted to a dot).
+const sanitize = (v) => v.replace(/,/g, '.').replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
 
+const QUICK_PCTS = [10, 20, 25, 30, 50, 70];
+const MAX_COUPONS = 5;
+
+/**
+ * Applies discounts, then coupons, in order on the running price, then tax.
+ * Each adjustment is { value, type: 'pct' | 'amt' }. A fixed amount can never
+ * push the price below zero.
+ */
+const calculate = ({ price, discounts, coupons, tax }) => {
+  const p = parseNum(price);
+  let running = p;
+  const steps = [];
+  const apply = (adj, kind, index) => {
+    const v = parseNum(adj.value);
+    if (v <= 0) return;
+    const value = adj.type === 'pct' ? Math.min(v, 100) : v;
+    const cut = adj.type === 'pct' ? running * value / 100 : Math.min(value, running);
+    running -= cut;
+    steps.push({ kind, index, type: adj.type, value, amount: -cut });
+  };
+  discounts.forEach((d, i) => apply(d, 'discount', i));
+  coupons.forEach((c, i) => apply(c, 'coupon', i));
+  const tv = parseNum(tax);
+  const taxAmount = running * tv / 100;
+  if (tv > 0) steps.push({ kind: 'tax', type: 'pct', value: tv, amount: taxAmount });
+  const savings = p - running;
+  return {
+    original: p, subtotal: running, tax: taxAmount, final: running + taxAmount,
+    savings, savingsPct: p > 0 ? (savings / p) * 100 : 0, steps,
+  };
+};
+
+// ─── Price-tag scanning ───────────────────────────────────────────────────────
 const extractPriceAndDiscount = (text) => {
   const pricePatterns = [
     /\$\s*(\d+(?:[.,]\d{1,2})?)/,
@@ -119,7 +141,7 @@ const extractPriceAndDiscount = (text) => {
   for (const pattern of discountPatterns) {
     const match = text.match(pattern);
     if (match) {
-      const val = parseInt(match[1]);
+      const val = parseInt(match[1], 10);
       if (val > 0 && val <= 100) { discount = val.toString(); break; }
     }
   }
@@ -142,7 +164,7 @@ const scanImageWithVisionAPI = async (base64Image) => {
   return extractPriceAndDiscount(text);
 };
 
-const ScanModal = ({ visible, onClose, onResult, theme, t, rtl }) => {
+const ScanModal = ({ visible, onClose, onResult, theme, t }) => {
   const [scanning, setScanning] = useState(false);
   const handleScan = async (useCamera) => {
     try {
@@ -170,267 +192,323 @@ const ScanModal = ({ visible, onClose, onResult, theme, t, rtl }) => {
   };
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContainer, { backgroundColor: theme.surface }]}>
+      <Pressable style={styles.modalOverlay} onPress={scanning ? undefined : onClose}>
+        <Pressable style={[styles.modalSheet, { backgroundColor: theme.surface }]} onPress={() => {}}>
+          <View style={[styles.modalHandle, { backgroundColor: theme.border }]} />
           {scanning ? (
             <View style={styles.scanningContainer}>
-              <ActivityIndicator size="large" color={theme.accent} />
+              <ActivityIndicator size="large" color={theme.primary} />
               <Text style={[styles.scanningText, { color: theme.text }]}>{t.scanning}</Text>
             </View>
           ) : (
             <>
+              <View style={[styles.modalIcon, { backgroundColor: theme.primarySoft }]}>
+                <Ionicons name="scan-outline" size={28} color={theme.primary} />
+              </View>
               <Text style={[styles.modalTitle, { color: theme.text }]}>{t.scanTitle}</Text>
               <Text style={[styles.modalSubtitle, { color: theme.textSecondary }]}>{t.scanSubtitle}</Text>
-              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: theme.accent }]} onPress={() => handleScan(true)} activeOpacity={0.8}>
+              <Pressable style={({ pressed }) => [styles.modalBtn, { backgroundColor: theme.primary, opacity: pressed ? 0.85 : 1 }]} onPress={() => handleScan(true)}>
+                <Ionicons name="camera-outline" size={20} color="#fff" />
                 <Text style={styles.modalBtnText}>{t.takePhoto}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: theme.accent2 }]} onPress={() => handleScan(false)} activeOpacity={0.8}>
-                <Text style={styles.modalBtnText}>{t.chooseGallery}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalCancelBtn, { borderColor: theme.border }]} onPress={onClose} activeOpacity={0.8}>
+              </Pressable>
+              <Pressable style={({ pressed }) => [styles.modalBtn, { backgroundColor: theme.surfaceAlt, opacity: pressed ? 0.85 : 1 }]} onPress={() => handleScan(false)}>
+                <Ionicons name="image-outline" size={20} color={theme.text} />
+                <Text style={[styles.modalBtnText, { color: theme.text }]}>{t.chooseGallery}</Text>
+              </Pressable>
+              <Pressable style={styles.modalCancelBtn} onPress={onClose}>
                 <Text style={[styles.modalCancelText, { color: theme.textSecondary }]}>{t.cancel}</Text>
-              </TouchableOpacity>
+              </Pressable>
             </>
           )}
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 };
 
-const InputField = ({ label, value, onChange, placeholder, theme, rtl, onScan, coupon }) => (
-  <View style={styles.fieldWrap}>
-    <Text style={[styles.label, { color: coupon ? theme.coupon : theme.label, textAlign: rtl ? 'right' : 'left' }]}>{label}</Text>
-    <View style={styles.inputRow}>
-      <TextInput
-        style={[styles.input, { backgroundColor: coupon ? theme.couponLight : theme.surfaceAlt, borderColor: coupon ? theme.coupon : theme.border, color: theme.text, textAlign: rtl ? 'right' : 'left', flex: 1 }]}
-        value={value} onChangeText={onChange} placeholder={placeholder}
-        placeholderTextColor={theme.textMuted} keyboardType="decimal-pad" maxLength={10}
-      />
-      {onScan && (
-        <TouchableOpacity style={[styles.scanBtn, { backgroundColor: theme.accentLight, borderColor: theme.accent }]} onPress={onScan} activeOpacity={0.75}>
-          <Text style={[styles.scanBtnText, { color: theme.accent }]}>📷</Text>
-        </TouchableOpacity>
-      )}
-    </View>
+// ─── UI building blocks ───────────────────────────────────────────────────────
+const Segmented = ({ options, value, onChange, theme, rtl, small, accent }) => (
+  <View style={[styles.seg, small && styles.segSmall, { backgroundColor: theme.surfaceAlt, flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+    {options.map((o) => {
+      const active = o.value === value;
+      return (
+        <Pressable
+          key={o.value}
+          onPress={() => onChange(o.value)}
+          accessibilityRole="button"
+          accessibilityState={{ selected: active }}
+          style={[small ? styles.segItemSmall : styles.segItem, active && [styles.segItemActive, { backgroundColor: small ? (accent || theme.primary) : theme.surface }]]}
+        >
+          <Text style={[styles.segText, small && styles.segTextSmall, { color: active ? (small ? '#fff' : theme.primary) : theme.textSecondary }]}>{o.label}</Text>
+        </Pressable>
+      );
+    })}
   </View>
 );
 
-const ResultRow = ({ label, value, theme, accent, negative, rtl }) => (
-  <View style={[styles.resultRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-    <Text style={[styles.resultLabel, { color: theme.textSecondary }]}>{label}</Text>
-    <Text style={[styles.resultValue, { color: accent ? theme.accent : negative ? theme.danger : theme.text }]}>{value}</Text>
-  </View>
-);
-
-const SavingsBox = ({ theme, p, finalPrice, totalSavings, totalSavingsPct, savingsPct, discountAmount, rtl, t }) => (
-  <View style={[styles.savingsBox, { backgroundColor: theme.successLight, borderColor: theme.success }]}>
-    <Text style={[styles.savingsBoxTitle, { color: theme.success, textAlign: rtl ? 'right' : 'left' }]}>{t.totalSavings}</Text>
-    <View style={[styles.savingsDividerLine, { backgroundColor: theme.success }]} />
-    <View style={[styles.savingsRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-      <View>
-        <Text style={[styles.savingsLabel, { color: theme.success, textAlign: rtl ? 'right' : 'left' }]}>{t.youSave}</Text>
-        <Text style={[styles.savingsPct, { color: theme.success, textAlign: rtl ? 'right' : 'left' }]}>
-          {(totalSavingsPct ?? savingsPct ?? 0).toFixed(1)}{t.offOriginal}
-        </Text>
-      </View>
-      <Text style={[styles.savingsValue, { color: theme.success }]}>${fmt(totalSavings ?? discountAmount ?? 0)}</Text>
-    </View>
-    <View style={[styles.savingsBreakdownRow, { borderTopColor: theme.success, flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-      <View style={styles.savingsStatItem}>
-        <Text style={[styles.savingsStatLabel, { color: theme.success }]}>{t.original}</Text>
-        <Text style={[styles.savingsStatValue, { color: theme.success }]}>${fmt(p)}</Text>
-      </View>
-      <View style={[styles.savingsStatDivider, { backgroundColor: theme.success }]} />
-      <View style={styles.savingsStatItem}>
-        <Text style={[styles.savingsStatLabel, { color: theme.success }]}>{t.discountLabel}</Text>
-        <Text style={[styles.savingsStatValue, { color: theme.success }]}>−${fmt(totalSavings ?? discountAmount ?? 0)}</Text>
-      </View>
-      <View style={[styles.savingsStatDivider, { backgroundColor: theme.success }]} />
-      <View style={styles.savingsStatItem}>
-        <Text style={[styles.savingsStatLabel, { color: theme.success }]}>{t.final}</Text>
-        <Text style={[styles.savingsStatValue, { color: theme.success }]}>${fmt(finalPrice)}</Text>
-      </View>
-    </View>
-  </View>
-);
-
-// ─── Simple Tab ───────────────────────────────────────────────────────────────
-const SimpleTab = ({ theme, rtl, t }) => {
-  const [price, setPrice] = useState('');
-  const [discount, setDiscount] = useState('');
-  const [tax, setTax] = useState('');
-  const [couponAmount, setCouponAmount] = useState('');
-  const [couponPct, setCouponPct] = useState('');
-  const [scanVisible, setScanVisible] = useState(false);
-
-  const p = parseNum(price);
-  const d = Math.min(parseNum(discount), 100);
-  const tv = parseNum(tax);
-  const ca = parseNum(couponAmount);
-  const cp = Math.min(parseNum(couponPct), 100);
-
-  const afterDiscount = p * (1 - d / 100);
-  const afterCouponPct = afterDiscount * (1 - cp / 100);
-  const afterCouponAmount = Math.max(0, afterCouponPct - ca);
-  const taxAmount = afterCouponAmount * (tv / 100);
-  const finalPrice = afterCouponAmount + taxAmount;
-  const totalSavings = p - finalPrice;
-  const totalSavingsPct = p > 0 ? (totalSavings / p) * 100 : 0;
-  const hasValues = p > 0 || d > 0;
-
+const NumberInput = ({ value, onChange, placeholder, prefix, suffix, theme, rtl, accent }) => {
+  const [focused, setFocused] = useState(false);
   return (
-    <ScrollView contentContainerStyle={styles.tabContent} keyboardShouldPersistTaps="handled">
-      <ScanModal visible={scanVisible} onClose={() => setScanVisible(false)}
-        onResult={({ price: pr, discount: di }) => { if (pr) setPrice(pr); if (di) setDiscount(di); }}
-        theme={theme} t={t} rtl={rtl} />
-
-      <View style={[styles.card, { backgroundColor: theme.surface }]}>
-        <InputField label={t.originalPrice} value={price} onChange={setPrice} placeholder="0.00" theme={theme} rtl={rtl} onScan={() => setScanVisible(true)} />
-        <InputField label={t.discount} value={discount} onChange={v => setDiscount(v.replace(/[^0-9.]/g, ''))} placeholder="0" theme={theme} rtl={rtl} />
-        <InputField label={t.salesTax} value={tax} onChange={setTax} placeholder="0" theme={theme} rtl={rtl} />
-
-        {/* Additional Discount Section */}
-        <View style={[styles.sectionDivider, { borderColor: theme.coupon }]}>
-          <Text style={[styles.sectionLabel, { color: theme.coupon }]}>{t.additionalDiscount}</Text>
-        </View>
-        <InputField label={t.couponAmount} value={couponAmount} onChange={setCouponAmount} placeholder="0.00" theme={theme} rtl={rtl} coupon />
-        <InputField label={t.couponPct} value={couponPct} onChange={v => setCouponPct(v.replace(/[^0-9.]/g, ''))} placeholder="0" theme={theme} rtl={rtl} coupon />
-      </View>
-
-      <View style={[styles.card, { backgroundColor: theme.surface }]}>
-        <ResultRow label={t.originalPriceRow} value={`$${fmt(p)}`} theme={theme} rtl={rtl} />
-        <ResultRow label={t.discountRow(d)} value={hasValues ? `− $${fmt(p - afterDiscount)}` : '—'} theme={theme} negative={hasValues && d > 0} rtl={rtl} />
-        {cp > 0 && <ResultRow label={t.couponPctRow(cp)} value={hasValues ? `− $${fmt(afterDiscount - afterCouponPct)}` : '—'} theme={theme} negative rtl={rtl} />}
-        {ca > 0 && <ResultRow label={t.couponAmountRow(fmt(ca))} value={hasValues ? `− $${fmt(ca)}` : '—'} theme={theme} negative rtl={rtl} />}
-        {tv > 0 && <ResultRow label={t.taxRow(tv)} value={hasValues ? `+ $${fmt(taxAmount)}` : '—'} theme={theme} rtl={rtl} />}
-        <View style={[styles.resultDivider, { backgroundColor: theme.border }]} />
-        <View style={[styles.finalPriceBox, { backgroundColor: theme.accentLight, borderColor: theme.accent }]}>
-          <Text style={[styles.finalPriceLabel, { color: theme.accent }]}>{t.finalPrice}</Text>
-          <Text style={[styles.finalPriceValue, { color: theme.accent }]}>${fmt(finalPrice)}</Text>
-        </View>
-        {hasValues && totalSavings > 0
-          ? <SavingsBox theme={theme} p={p} finalPrice={finalPrice} totalSavings={totalSavings} totalSavingsPct={totalSavingsPct} rtl={rtl} t={t} />
-          : t.enterToSeeSavings ? <Text style={[styles.emptyHint, { color: theme.textMuted }]}>{t.enterToSeeSavings}</Text> : null}
-        <TouchableOpacity
-          style={[styles.clearBtn, { backgroundColor: hasValues ? theme.dangerLight : theme.surfaceAlt, borderColor: hasValues ? theme.danger : theme.border }]}
-          onPress={() => { setPrice(''); setDiscount(''); setTax(''); setCouponAmount(''); setCouponPct(''); }} activeOpacity={0.75}>
-          <Text style={[styles.clearBtnText, { color: hasValues ? theme.danger : theme.textMuted }]}>{t.clear}</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+    <View style={[styles.inputBox, { flexDirection: rtl ? 'row-reverse' : 'row', backgroundColor: theme.surfaceAlt, borderColor: focused ? (accent || theme.primary) : 'transparent' }]}>
+      {prefix ? <Text style={[styles.affix, { color: theme.textMuted }]}>{prefix}</Text> : null}
+      <TextInput
+        style={[styles.input, { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}
+        value={value}
+        onChangeText={(v) => onChange(sanitize(v))}
+        placeholder={placeholder}
+        placeholderTextColor={theme.textMuted}
+        keyboardType="decimal-pad"
+        maxLength={10}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+      />
+      {suffix ? <Text style={[styles.affix, { color: theme.textMuted }]}>{suffix}</Text> : null}
+    </View>
   );
 };
 
-// ─── Advanced Tab ─────────────────────────────────────────────────────────────
-const AdvancedTab = ({ theme, rtl, t }) => {
+const typeOptions = [{ value: 'pct', label: '%' }, { value: 'amt', label: '$' }];
+
+// Value input with a % / $ switch and optional quick-pick chips.
+const AdjustmentInput = ({ adj, onChange, theme, rtl, accent, quickPicks }) => (
+  <View style={{ gap: 10 }}>
+    <View style={[styles.adjRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+      <View style={{ flex: 1 }}>
+        <NumberInput
+          value={adj.value}
+          onChange={(v) => onChange({ ...adj, value: v })}
+          placeholder={adj.type === 'pct' ? '0' : '0.00'}
+          prefix={adj.type === 'amt' ? '$' : null}
+          suffix={adj.type === 'pct' ? '%' : null}
+          theme={theme} rtl={rtl} accent={accent}
+        />
+      </View>
+      <Segmented small options={typeOptions} value={adj.type} onChange={(type) => onChange({ ...adj, type })} theme={theme} rtl={rtl} accent={accent} />
+    </View>
+    {quickPicks && adj.type === 'pct' && (
+      <View style={[styles.chips, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+        {QUICK_PCTS.map((n) => {
+          const active = adj.value === String(n);
+          return (
+            <Pressable
+              key={n}
+              onPress={() => onChange({ ...adj, value: active ? '' : String(n) })}
+              style={[styles.chip, { backgroundColor: active ? accent || theme.primary : theme.surfaceAlt }]}
+            >
+              <Text style={[styles.chipText, { color: active ? '#fff' : theme.textSecondary }]}>{n}%</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    )}
+  </View>
+);
+
+const Section = ({ icon, title, hint, color, soft, theme, rtl, right, children }) => (
+  <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+    <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+      <View style={[styles.iconBadge, { backgroundColor: soft }]}>
+        <Ionicons name={icon} size={16} color={color} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.cardTitle, { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>{title}</Text>
+        {hint ? <Text style={[styles.cardHint, { color: theme.textMuted, textAlign: rtl ? 'right' : 'left' }]}>{hint}</Text> : null}
+      </View>
+      {right}
+    </View>
+    {children}
+  </View>
+);
+
+const Hero = ({ theme, t, rtl, result, onReset, canReset }) => {
+  const row = { flexDirection: rtl ? 'row-reverse' : 'row' };
+  return (
+    <View style={[styles.hero, { backgroundColor: theme.hero }]}>
+      <View style={[row, styles.heroTop]}>
+        <Text style={styles.heroLabel}>{t.finalPrice}</Text>
+        <Pressable
+          onPress={onReset} disabled={!canReset} hitSlop={8}
+          style={({ pressed }) => [row, styles.resetBtn, { opacity: !canReset ? 0.4 : pressed ? 0.7 : 1 }]}
+        >
+          <Ionicons name="refresh" size={14} color="#fff" />
+          <Text style={styles.resetText}>{t.reset}</Text>
+        </Pressable>
+      </View>
+      <View style={[row, styles.heroValueRow]}>
+        <Text style={styles.heroValue} numberOfLines={1} adjustsFontSizeToFit>{money(result.final)}</Text>
+        {result.savings > 0 && <Text style={styles.heroStrike}>{money(result.original)}</Text>}
+      </View>
+      <View style={[row, styles.heroPills]}>
+        {result.savings > 0 ? (
+          <View style={[row, styles.heroPill]}>
+            <Ionicons name="trending-down" size={14} color="#065F46" />
+            <Text style={styles.heroPillText}>{t.youSave(money(result.savings), result.savingsPct.toFixed(1))}</Text>
+          </View>
+        ) : (
+          <Text style={styles.heroHint}>{t.enterPrice}</Text>
+        )}
+        {result.tax > 0 && (
+          <View style={styles.heroPillMuted}>
+            <Text style={styles.heroPillMutedText}>{t.inclTax(money(result.tax))}</Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+};
+
+const BreakdownRow = ({ label, value, color, theme, rtl, bold }) => (
+  <View style={[styles.bdRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+    <Text style={[bold ? styles.bdLabelBold : styles.bdLabel, { color: bold ? theme.text : theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{label}</Text>
+    <Text style={[bold ? styles.bdValueBold : styles.bdValue, { color: color || theme.text }]}>{value}</Text>
+  </View>
+);
+
+// ─── Calculator (shared by both tabs) ─────────────────────────────────────────
+const emptyDiscounts = (mode) => (mode === 'stacked'
+  ? [{ value: '', type: 'pct' }, { value: '', type: 'pct' }]
+  : [{ value: '', type: 'pct' }]);
+
+const Calculator = ({ mode, theme, t, rtl, visible }) => {
   const [price, setPrice] = useState('');
-  const [discount1, setDiscount1] = useState('');
-  const [discount2, setDiscount2] = useState('');
+  const [discounts, setDiscounts] = useState(() => emptyDiscounts(mode));
+  const [coupons, setCoupons] = useState([]);
   const [tax, setTax] = useState('');
-  const [couponAmount, setCouponAmount] = useState('');
-  const [couponPct, setCouponPct] = useState('');
   const [scanVisible, setScanVisible] = useState(false);
+  const nextId = useRef(1);
 
-  const p = parseNum(price);
-  const d1 = Math.min(parseNum(discount1), 100);
-  const d2 = Math.min(parseNum(discount2), 100);
-  const tv = parseNum(tax);
-  const ca = parseNum(couponAmount);
-  const cp = Math.min(parseNum(couponPct), 100);
+  const result = useMemo(() => calculate({ price, discounts, coupons, tax }), [price, discounts, coupons, tax]);
+  const canReset = !!(price || tax || coupons.length || discounts.some((d) => d.value));
+  const stacked = mode === 'stacked';
 
-  const savedByD1 = p * (d1 / 100);
-  const afterDiscount1 = p - savedByD1;
-  const savedByD2 = afterDiscount1 * (d2 / 100);
-  const afterDiscount2 = afterDiscount1 - savedByD2;
-  const afterCouponPct = afterDiscount2 * (1 - cp / 100);
-  const afterCouponAmount = Math.max(0, afterCouponPct - ca);
-  const taxAmount = afterCouponAmount * (tv / 100);
-  const finalPrice = afterCouponAmount + taxAmount;
-  const totalSavings = p - finalPrice;
-  const totalSavingsPct = p > 0 ? (totalSavings / p) * 100 : 0;
-  const equivalentDiscount = p > 0 ? (totalSavings / p) * 100 : 0;
-  const hasValues = p > 0 || d1 > 0 || d2 > 0;
-  const lBorder = (color) => ({ borderLeftWidth: rtl ? 0 : 3, borderRightWidth: rtl ? 3 : 0, borderLeftColor: color, borderRightColor: color, paddingLeft: rtl ? 0 : 12, paddingRight: rtl ? 12 : 0 });
+  const reset = () => { setPrice(''); setDiscounts(emptyDiscounts(mode)); setCoupons([]); setTax(''); };
+  const updateDiscount = (i, adj) => setDiscounts((ds) => ds.map((d, j) => (j === i ? adj : d)));
+  const addCoupon = () => setCoupons((cs) => [...cs, { id: nextId.current++, value: '', type: 'pct' }]);
+  const updateCoupon = (id, adj) => setCoupons((cs) => cs.map((c) => (c.id === id ? adj : c)));
+  const removeCoupon = (id) => setCoupons((cs) => cs.filter((c) => c.id !== id));
+
+  const adjText = (s) => (s.type === 'pct' ? `${trimNum(s.value)}%` : money(s.value));
+  const stepLabel = (s) => {
+    if (s.kind === 'discount') return `${stacked ? t.discountN(s.index + 1) : t.discount} (${adjText(s)})`;
+    if (s.kind === 'coupon') return `${t.coupon} ${s.index + 1} (${adjText(s)})`;
+    return `${t.tax} (${trimNum(s.value)}%)`;
+  };
+  const stepColor = (s) => (s.kind === 'tax' ? theme.tax : s.kind === 'coupon' ? theme.coupon : theme.success);
+
+  const pctDiscounts = result.steps.filter((s) => s.kind === 'discount' && s.type === 'pct');
+  const showStackNote = stacked && pctDiscounts.length >= 2 && result.original > 0;
+  const stackParts = pctDiscounts.map((s) => `${trimNum(s.value)}%`).join(' + ');
+  const stackEq = pctDiscounts.length >= 2
+    ? (100 * (1 - pctDiscounts.reduce((acc, s) => acc * (1 - s.value / 100), 1))).toFixed(1)
+    : '0';
+  const row = { flexDirection: rtl ? 'row-reverse' : 'row' };
 
   return (
-    <ScrollView contentContainerStyle={styles.tabContent} keyboardShouldPersistTaps="handled">
-      <ScanModal visible={scanVisible} onClose={() => setScanVisible(false)}
-        onResult={({ price: pr, discount: di }) => { if (pr) setPrice(pr); if (di) setDiscount1(di); }}
-        theme={theme} t={t} rtl={rtl} />
+    <View style={[styles.calc, { display: visible ? 'flex' : 'none' }]}>
+      <ScanModal
+        visible={scanVisible} onClose={() => setScanVisible(false)} theme={theme} t={t}
+        onResult={({ price: pr, discount: di }) => {
+          if (pr) setPrice(pr);
+          if (di) updateDiscount(0, { value: di, type: 'pct' });
+        }}
+      />
 
-      <View style={[styles.card, { backgroundColor: theme.surface }]}>
-        <InputField label={t.originalPrice} value={price} onChange={setPrice} placeholder="0.00" theme={theme} rtl={rtl} onScan={() => setScanVisible(true)} />
-        <InputField label={t.firstDiscount} value={discount1} onChange={v => setDiscount1(v.replace(/[^0-9.]/g, ''))} placeholder="0" theme={theme} rtl={rtl} />
-        <InputField label={t.secondDiscount} value={discount2} onChange={v => setDiscount2(v.replace(/[^0-9.]/g, ''))} placeholder="0" theme={theme} rtl={rtl} />
-        <InputField label={t.salesTax} value={tax} onChange={setTax} placeholder="0" theme={theme} rtl={rtl} />
+      <Hero theme={theme} t={t} rtl={rtl} result={result} onReset={reset} canReset={canReset} />
 
-        {/* Additional Discount Section */}
-        <View style={[styles.sectionDivider, { borderColor: theme.coupon }]}>
-          <Text style={[styles.sectionLabel, { color: theme.coupon }]}>{t.additionalDiscount}</Text>
-        </View>
-        <InputField label={t.couponAmount} value={couponAmount} onChange={setCouponAmount} placeholder="0.00" theme={theme} rtl={rtl} coupon />
-        <InputField label={t.couponPct} value={couponPct} onChange={v => setCouponPct(v.replace(/[^0-9.]/g, ''))} placeholder="0" theme={theme} rtl={rtl} coupon />
-      </View>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        {/* Price */}
+        <Section icon="pricetag-outline" title={t.price} color={theme.primary} soft={theme.primarySoft} theme={theme} rtl={rtl}
+          right={(
+            <Pressable onPress={() => setScanVisible(true)} style={({ pressed }) => [row, styles.scanBtn, { backgroundColor: theme.primarySoft, opacity: pressed ? 0.7 : 1 }]}>
+              <Ionicons name="camera-outline" size={16} color={theme.primary} />
+              <Text style={[styles.scanText, { color: theme.primary }]}>{t.scan}</Text>
+            </Pressable>
+          )}
+        >
+          <NumberInput value={price} onChange={setPrice} placeholder="0.00" prefix="$" theme={theme} rtl={rtl} />
+        </Section>
 
-      <View style={[styles.infoBox, { backgroundColor: theme.accent2Light, borderColor: theme.accent2 }]}>
-        <Text style={[styles.infoText, { color: theme.accent2, textAlign: rtl ? 'right' : 'left' }]}>
-          {t.stackedNote}{d1 > 0 && d2 > 0 ? t.stackedNoteSuffix(d1, d2, equivalentDiscount.toFixed(1), d1 + d2) : ''}
-        </Text>
-      </View>
+        {/* Discount(s) */}
+        <Section icon="pricetags-outline" title={stacked ? t.discounts : t.discount} hint={stacked ? t.stackedHint : null}
+          color={theme.success} soft={theme.successSoft} theme={theme} rtl={rtl}>
+          {discounts.map((d, i) => (
+            <View key={i} style={{ gap: 8 }}>
+              {stacked && <Text style={[styles.subLabel, { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.discountN(i + 1)}</Text>}
+              <AdjustmentInput adj={d} onChange={(adj) => updateDiscount(i, adj)} theme={theme} rtl={rtl} accent={theme.success} quickPicks />
+            </View>
+          ))}
+        </Section>
 
-      <View style={[styles.card, { backgroundColor: theme.surface }]}>
-        <View style={[styles.stepBlock, lBorder(theme.accent)]}>
-          <Text style={[styles.stepBlockTitle, { color: theme.accent, textAlign: rtl ? 'right' : 'left' }]}>{t.step1} ({d1}%)</Text>
-          <ResultRow label={t.originalPriceRow} value={`$${fmt(p)}`} theme={theme} rtl={rtl} />
-          <ResultRow label={t.saved} value={hasValues ? `− $${fmt(savedByD1)}` : '—'} theme={theme} negative={hasValues && savedByD1 > 0} rtl={rtl} />
-          <ResultRow label={t.priceAfterStep1} value={`$${fmt(afterDiscount1)}`} theme={theme} accent rtl={rtl} />
-        </View>
-        <View style={[styles.stepBlock, lBorder(theme.accent2), { marginTop: 12 }]}>
-          <Text style={[styles.stepBlockTitle, { color: theme.accent2, textAlign: rtl ? 'right' : 'left' }]}>{t.step2} ({d2}%)</Text>
-          <ResultRow label={t.priceBefore} value={`$${fmt(afterDiscount1)}`} theme={theme} rtl={rtl} />
-          <ResultRow label={t.extraSaved} value={hasValues ? `− $${fmt(savedByD2)}` : '—'} theme={theme} negative={hasValues && savedByD2 > 0} rtl={rtl} />
-          <ResultRow label={t.priceAfterStep2} value={`$${fmt(afterDiscount2)}`} theme={theme} accent rtl={rtl} />
-        </View>
-        {(cp > 0 || ca > 0) && (
-          <View style={[styles.stepBlock, lBorder(theme.coupon), { marginTop: 12 }]}>
-            <Text style={[styles.stepBlockTitle, { color: theme.coupon, textAlign: rtl ? 'right' : 'left' }]}>{t.additionalDiscount}</Text>
-            {cp > 0 && <ResultRow label={t.couponPctRow(cp)} value={hasValues ? `− $${fmt(afterDiscount2 - afterCouponPct)}` : '—'} theme={theme} negative rtl={rtl} />}
-            {ca > 0 && <ResultRow label={t.couponAmountRow(fmt(ca))} value={hasValues ? `− $${fmt(ca)}` : '—'} theme={theme} negative rtl={rtl} />}
-          </View>
-        )}
-        {tv > 0 && (
-          <View style={[styles.stepBlock, lBorder(theme.success), { marginTop: 12 }]}>
-            <Text style={[styles.stepBlockTitle, { color: theme.success, textAlign: rtl ? 'right' : 'left' }]}>{t.step3} ({tv}%)</Text>
-            <ResultRow label={t.taxAmount} value={hasValues ? `+ $${fmt(taxAmount)}` : '—'} theme={theme} rtl={rtl} />
-          </View>
-        )}
-        <View style={[styles.resultDivider, { backgroundColor: theme.border }]} />
-        {hasValues && (d1 > 0 || d2 > 0) && (
-          <View style={[styles.equivalentBox, { backgroundColor: theme.accent2Light, borderColor: theme.accent2 }]}>
-            <Text style={[styles.equivalentLabel, { color: theme.accent2 }]}>{t.equivalentDiscount}</Text>
-            <Text style={[styles.equivalentValue, { color: theme.accent2 }]}>{equivalentDiscount.toFixed(2)}%</Text>
-            <Text style={[styles.equivalentSub, { color: theme.accent2 }]}>{t.stackedNotEqual(d1, d2, d1 + d2)}</Text>
-          </View>
-        )}
-        <View style={[styles.finalPriceBox, { backgroundColor: theme.accentLight, borderColor: theme.accent }]}>
-          <Text style={[styles.finalPriceLabel, { color: theme.accent }]}>{t.finalPrice}</Text>
-          <Text style={[styles.finalPriceValue, { color: theme.accent }]}>${fmt(finalPrice)}</Text>
-        </View>
-        {hasValues && totalSavings > 0
-          ? <SavingsBox theme={theme} p={p} finalPrice={finalPrice} totalSavings={totalSavings} totalSavingsPct={totalSavingsPct} rtl={rtl} t={t} />
-          : <Text style={[styles.emptyHint, { color: theme.textMuted }]}>{t.enterToSeeBreakdown}</Text>}
-        <TouchableOpacity
-          style={[styles.clearBtn, { backgroundColor: hasValues ? theme.dangerLight : theme.surfaceAlt, borderColor: hasValues ? theme.danger : theme.border }]}
-          onPress={() => { setPrice(''); setDiscount1(''); setDiscount2(''); setTax(''); setCouponAmount(''); setCouponPct(''); }} activeOpacity={0.75}>
-          <Text style={[styles.clearBtnText, { color: hasValues ? theme.danger : theme.textMuted }]}>{t.clear}</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+        {/* Coupons */}
+        <Section icon="ticket-outline" title={t.coupons} hint={t.couponHint} color={theme.coupon} soft={theme.couponSoft} theme={theme} rtl={rtl}>
+          {coupons.map((c, i) => (
+            <View key={c.id} style={[row, styles.couponRow]}>
+              <View style={[styles.couponBadge, { backgroundColor: theme.couponSoft }]}>
+                <Text style={[styles.couponBadgeText, { color: theme.coupon }]}>{i + 1}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <AdjustmentInput adj={c} onChange={(adj) => updateCoupon(c.id, adj)} theme={theme} rtl={rtl} accent={theme.coupon} />
+              </View>
+              <Pressable onPress={() => removeCoupon(c.id)} hitSlop={8} accessibilityLabel="Remove coupon"
+                style={({ pressed }) => [styles.removeBtn, { backgroundColor: theme.dangerSoft, opacity: pressed ? 0.7 : 1 }]}>
+                <Ionicons name="close" size={18} color={theme.danger} />
+              </Pressable>
+            </View>
+          ))}
+          {coupons.length < MAX_COUPONS && (
+            <Pressable onPress={addCoupon} style={({ pressed }) => [row, styles.addBtn, { borderColor: theme.coupon, opacity: pressed ? 0.7 : 1 }]}>
+              <Ionicons name="add" size={18} color={theme.coupon} />
+              <Text style={[styles.addBtnText, { color: theme.coupon }]}>{t.addCoupon}</Text>
+            </Pressable>
+          )}
+        </Section>
+
+        {/* Tax */}
+        <Section icon="receipt-outline" title={t.tax} hint={t.optional} color={theme.tax} soft={theme.taxSoft} theme={theme} rtl={rtl}>
+          <NumberInput value={tax} onChange={setTax} placeholder="0" suffix="%" theme={theme} rtl={rtl} accent={theme.tax} />
+        </Section>
+
+        {/* Breakdown */}
+        <Section icon="list-outline" title={t.breakdown} color={theme.textSecondary} soft={theme.surfaceAlt} theme={theme} rtl={rtl}>
+          {result.original > 0 ? (
+            <View style={{ gap: 2 }}>
+              <BreakdownRow label={t.original} value={money(result.original)} theme={theme} rtl={rtl} />
+              {result.steps.filter((s) => s.kind !== 'tax').map((s, i) => (
+                <BreakdownRow key={`${s.kind}-${i}`} label={stepLabel(s)} value={`− ${money(-s.amount)}`} color={stepColor(s)} theme={theme} rtl={rtl} />
+              ))}
+              {result.tax > 0 && (
+                <>
+                  <View style={[styles.bdDivider, { backgroundColor: theme.border }]} />
+                  <BreakdownRow label={t.subtotal} value={money(result.subtotal)} theme={theme} rtl={rtl} />
+                  {result.steps.filter((s) => s.kind === 'tax').map((s) => (
+                    <BreakdownRow key="tax" label={stepLabel(s)} value={`+ ${money(s.amount)}`} color={theme.tax} theme={theme} rtl={rtl} />
+                  ))}
+                </>
+              )}
+              <View style={[styles.bdDivider, { backgroundColor: theme.border }]} />
+              <BreakdownRow label={t.total} value={money(result.final)} color={theme.primary} theme={theme} rtl={rtl} bold />
+              {result.savings > 0 && (
+                <BreakdownRow label={t.effective} value={`${result.savingsPct.toFixed(1)}%`} color={theme.success} theme={theme} rtl={rtl} />
+              )}
+              {showStackNote && (
+                <View style={[row, styles.note, { backgroundColor: theme.primarySoft }]}>
+                  <Ionicons name="information-circle-outline" size={16} color={theme.primary} />
+                  <Text style={[styles.noteText, { color: theme.primary, textAlign: rtl ? 'right' : 'left' }]}>{t.stackedNote(stackParts, stackEq)}</Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            <Text style={[styles.emptyHint, { color: theme.textMuted }]}>{t.emptyBreakdown}</Text>
+          )}
+        </Section>
+      </ScrollView>
+    </View>
   );
 };
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
+const TOP_INSET = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 10 : 56;
+
 export default function App() {
   const systemScheme = useColorScheme();
   const [isDark, setIsDark] = useState(null);
@@ -444,7 +522,7 @@ export default function App() {
         const savedTheme = await AsyncStorage.getItem('theme');
         const savedLang = await AsyncStorage.getItem('lang');
         setIsDark(savedTheme !== null ? savedTheme === 'dark' : systemScheme === 'dark');
-        if (savedLang !== null) setLang(savedLang);
+        if (savedLang !== null && translations[savedLang]) setLang(savedLang);
       } catch (e) { setIsDark(systemScheme === 'dark'); }
       setLoaded(true);
     };
@@ -457,118 +535,140 @@ export default function App() {
     try { await AsyncStorage.setItem('theme', newVal ? 'dark' : 'light'); } catch (e) {}
   };
 
-  const handleLangChange = async (newLang) => {
+  const handleLangToggle = async () => {
+    const newLang = lang === 'en' ? 'ar' : 'en';
     setLang(newLang);
     try { await AsyncStorage.setItem('lang', newLang); } catch (e) {}
   };
 
-  const theme = isDark !== null ? (isDark ? darkTheme : lightTheme) : lightTheme;
+  const theme = isDark ? darkTheme : lightTheme;
   const rtl = lang === 'ar';
   const t = translations[lang];
 
   if (!loaded) return <View style={{ flex: 1, backgroundColor: theme.bg }} />;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: theme.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.bg} />
-      <View style={[styles.container, { backgroundColor: theme.bg }]}>
-        <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
-          <TouchableOpacity
-            style={[styles.themeToggle, { backgroundColor: isDark ? '#334155' : '#CBD5E1', borderColor: isDark ? '#60A5FA' : '#3B82F6' }]}
-            onPress={handleThemeToggle} activeOpacity={0.8}>
-            <View style={[styles.toggleKnob, { backgroundColor: isDark ? '#0F172A' : '#FFFFFF', alignSelf: isDark ? 'flex-end' : 'flex-start', borderColor: isDark ? '#60A5FA' : '#3B82F6' }]}>
-              <Text style={styles.toggleEmoji}>{isDark ? '🌙' : '☀️'}</Text>
-            </View>
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerLogo}>🏷️</Text>
-            <Text style={[styles.headerTitle, { color: theme.text }]}>{t.appTitle}</Text>
+      <View style={[styles.header, { paddingTop: TOP_INSET }]}>
+        <View style={[styles.headerRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.logo, { backgroundColor: theme.primary }]}>
+            <Ionicons name="pricetags" size={18} color="#fff" />
           </View>
-          <View style={styles.langToggle}>
-            <TouchableOpacity style={[styles.langBtn, { backgroundColor: lang === 'en' ? theme.accent : theme.surfaceAlt, borderColor: lang === 'en' ? theme.accent : theme.border }]} onPress={() => handleLangChange('en')}>
-              <Text style={[styles.langBtnText, { color: lang === 'en' ? '#fff' : theme.textSecondary }]}>EN</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.langBtn, { backgroundColor: lang === 'ar' ? theme.accent : theme.surfaceAlt, borderColor: lang === 'ar' ? theme.accent : theme.border }]} onPress={() => handleLangChange('ar')}>
-              <Text style={[styles.langBtnText, { color: lang === 'ar' ? '#fff' : theme.textSecondary }]}>عربي</Text>
-            </TouchableOpacity>
+          <View style={styles.headerText}>
+            <Text style={[styles.headerTitle, { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>{t.appTitle}</Text>
+            <Text style={[styles.headerSubtitle, { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.appSubtitle}</Text>
           </View>
+          <Pressable onPress={handleLangToggle} accessibilityLabel="Change language"
+            style={({ pressed }) => [styles.iconBtn, { backgroundColor: theme.surface, borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}>
+            <Text style={[styles.iconBtnText, { color: theme.text }]}>{lang === 'en' ? 'ع' : 'EN'}</Text>
+          </Pressable>
+          <Pressable onPress={handleThemeToggle} accessibilityLabel="Toggle dark mode"
+            style={({ pressed }) => [styles.iconBtn, { backgroundColor: theme.surface, borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}>
+            <Ionicons name={isDark ? 'sunny-outline' : 'moon-outline'} size={18} color={theme.text} />
+          </Pressable>
         </View>
-        <View style={[styles.tabBar, { backgroundColor: theme.surface, borderBottomColor: theme.tabBorder, flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-          <TouchableOpacity style={[styles.tab, activeTab === 'simple' && { borderBottomColor: theme.tabActive, borderBottomWidth: 2 }]} onPress={() => setActiveTab('simple')}>
-            <Text style={[styles.tabText, { color: activeTab === 'simple' ? theme.tabActive : theme.tabInactive }]}>{t.simple}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.tab, activeTab === 'stacked' && { borderBottomColor: theme.tabActive, borderBottomWidth: 2 }]} onPress={() => setActiveTab('stacked')}>
-            <Text style={[styles.tabText, { color: activeTab === 'stacked' ? theme.tabActive : theme.tabInactive }]}>{t.advanced}</Text>
-          </TouchableOpacity>
-        </View>
-        {activeTab === 'simple' ? <SimpleTab theme={theme} rtl={rtl} t={t} /> : <AdvancedTab theme={theme} rtl={rtl} t={t} />}
+        <Segmented
+          options={[{ value: 'simple', label: t.simple }, { value: 'stacked', label: t.stacked }]}
+          value={activeTab} onChange={setActiveTab} theme={theme} rtl={rtl}
+        />
       </View>
+      {/* Both tabs stay mounted so switching tabs keeps what you typed. */}
+      <Calculator mode="simple" theme={theme} t={t} rtl={rtl} visible={activeTab === 'simple'} />
+      <Calculator mode="stacked" theme={theme} t={t} rtl={rtl} visible={activeTab === 'stacked'} />
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { paddingTop: 52, paddingBottom: 14, paddingHorizontal: 14, borderBottomWidth: 1, alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  headerLogo: { fontSize: 20 },
-  headerTitle: { fontSize: 16, fontWeight: '800', letterSpacing: -0.5 },
-  langToggle: { flexDirection: 'row', gap: 4 },
-  themeToggle: { width: 56, height: 30, borderRadius: 15, padding: 3, justifyContent: 'center', borderWidth: 1.5 },
-  toggleKnob: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
-  toggleEmoji: { fontSize: 13 },
-  langBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1.5 },
-  langBtnText: { fontSize: 12, fontWeight: '700' },
-  tabBar: { borderBottomWidth: 1 },
-  tab: { flex: 1, paddingVertical: 14, alignItems: 'center' },
-  tabText: { fontSize: 15, fontWeight: '700' },
-  tabContent: { padding: 16, gap: 12 },
-  card: { borderRadius: 16, padding: 16, gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2 },
-  sectionDivider: { borderTopWidth: 1.5, borderStyle: 'dashed', paddingTop: 10, marginTop: 2 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2 },
-  fieldWrap: { gap: 6 },
-  label: { fontSize: 13, fontWeight: '600', letterSpacing: 0.2 },
-  inputRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  input: { height: 52, borderRadius: 12, borderWidth: 1.5, paddingHorizontal: 14, fontSize: 18, fontWeight: '600' },
-  scanBtn: { width: 52, height: 52, borderRadius: 12, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  scanBtnText: { fontSize: 22 },
-  resultRow: { justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
-  resultLabel: { fontSize: 14, fontWeight: '500' },
-  resultValue: { fontSize: 15, fontWeight: '700' },
-  resultDivider: { height: 1, marginVertical: 6, opacity: 0.4 },
-  finalPriceBox: { borderRadius: 14, borderWidth: 1.5, padding: 16, alignItems: 'center' },
-  finalPriceLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginBottom: 4 },
-  finalPriceValue: { fontSize: 42, fontWeight: '800', letterSpacing: -1 },
-  savingsBox: { borderRadius: 14, borderWidth: 1.5, padding: 16 },
-  savingsBoxTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, marginBottom: 8 },
-  savingsDividerLine: { height: 1, opacity: 0.25, marginBottom: 10 },
-  savingsRow: { justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  savingsLabel: { fontSize: 16, fontWeight: '700' },
-  savingsValue: { fontSize: 32, fontWeight: '800', letterSpacing: -1 },
-  savingsPct: { fontSize: 13, fontWeight: '500', opacity: 0.8 },
-  savingsBreakdownRow: { justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTopWidth: 1, opacity: 0.85 },
-  savingsStatItem: { flex: 1, alignItems: 'center' },
-  savingsStatLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.5, marginBottom: 3 },
-  savingsStatValue: { fontSize: 13, fontWeight: '700' },
-  savingsStatDivider: { width: 1, opacity: 0.3, marginHorizontal: 4 },
-  emptyHint: { textAlign: 'center', fontSize: 14, paddingVertical: 12 },
-  clearBtn: { height: 52, borderRadius: 14, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  clearBtnText: { fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
-  stepBlock: { gap: 4 },
-  stepBlockTitle: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3, marginBottom: 4 },
-  equivalentBox: { borderRadius: 12, borderWidth: 1.5, padding: 12, alignItems: 'center', marginBottom: 4 },
-  equivalentLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1 },
-  equivalentValue: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
-  equivalentSub: { fontSize: 12, fontWeight: '500', opacity: 0.8 },
-  infoBox: { borderRadius: 12, borderWidth: 1, padding: 12 },
-  infoText: { fontSize: 13, fontWeight: '500', lineHeight: 18 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  modalContainer: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 28, gap: 12 },
-  modalTitle: { fontSize: 20, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
+  // Header
+  header: { paddingHorizontal: 16, paddingBottom: 12, gap: 14 },
+  headerRow: { alignItems: 'center', gap: 10 },
+  logo: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  headerText: { flex: 1 },
+  headerTitle: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
+  headerSubtitle: { fontSize: 12, fontWeight: '500', marginTop: 1 },
+  iconBtn: { width: 40, height: 40, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  iconBtnText: { fontSize: 14, fontWeight: '800' },
+
+  // Segmented control
+  seg: { borderRadius: 14, padding: 4, gap: 4 },
+  segSmall: { borderRadius: 12, padding: 3, gap: 2 },
+  segItem: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
+  segItemSmall: { width: 40, height: 46, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  segItemActive: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 1 },
+  segText: { fontSize: 14, fontWeight: '700' },
+  segTextSmall: { fontSize: 15, fontWeight: '800' },
+
+  // Hero
+  calc: { flex: 1 },
+  hero: {
+    marginHorizontal: 16, marginBottom: 4, borderRadius: 22, padding: 18, gap: 6,
+    shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16, elevation: 6,
+  },
+  heroTop: { justifyContent: 'space-between', alignItems: 'center' },
+  heroLabel: { color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: '700', letterSpacing: 1.4 },
+  resetBtn: { alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.16)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  resetText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  heroValueRow: { alignItems: 'flex-end', gap: 10 },
+  heroValue: { color: '#fff', fontSize: 44, fontWeight: '800', letterSpacing: -1.5, flexShrink: 1 },
+  heroStrike: { color: 'rgba(255,255,255,0.6)', fontSize: 16, fontWeight: '600', textDecorationLine: 'line-through', marginBottom: 9 },
+  heroPills: { flexWrap: 'wrap', gap: 6, alignItems: 'center', minHeight: 26 },
+  heroPill: { alignItems: 'center', gap: 4, backgroundColor: '#A7F3D0', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  heroPillText: { color: '#065F46', fontSize: 13, fontWeight: '700' },
+  heroPillMuted: { backgroundColor: 'rgba(255,255,255,0.16)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  heroPillMutedText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  heroHint: { color: 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: '500' },
+
+  // Cards
+  scroll: { padding: 16, paddingBottom: 40, gap: 12 },
+  card: { borderRadius: 18, borderWidth: 1, padding: 16, gap: 14 },
+  cardHeader: { alignItems: 'center', gap: 10 },
+  iconBadge: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { fontSize: 15, fontWeight: '700' },
+  cardHint: { fontSize: 12, fontWeight: '500', marginTop: 1 },
+  subLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 0.2 },
+
+  // Inputs
+  inputBox: { height: 52, borderRadius: 14, borderWidth: 1.5, paddingHorizontal: 14, alignItems: 'center', gap: 6 },
+  input: { flex: 1, minWidth: 0, height: '100%', fontSize: 20, fontWeight: '700', paddingVertical: 0, ...(Platform.OS === 'web' ? { outlineStyle: 'none', width: 0 } : null) },
+  affix: { fontSize: 18, fontWeight: '700' },
+  adjRow: { alignItems: 'center', gap: 8 },
+  chips: { flexWrap: 'wrap', gap: 6 },
+  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
+  chipText: { fontSize: 13, fontWeight: '700' },
+  scanBtn: { alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
+  scanText: { fontSize: 13, fontWeight: '700' },
+
+  // Coupons
+  couponRow: { alignItems: 'center', gap: 8 },
+  couponBadge: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  couponBadgeText: { fontSize: 12, fontWeight: '800' },
+  removeBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  addBtn: { height: 46, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  addBtnText: { fontSize: 14, fontWeight: '700' },
+
+  // Breakdown
+  bdRow: { justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5, gap: 12 },
+  bdLabel: { fontSize: 14, fontWeight: '500', flexShrink: 1 },
+  bdLabelBold: { fontSize: 16, fontWeight: '800', flexShrink: 1 },
+  bdValue: { fontSize: 15, fontWeight: '700' },
+  bdValueBold: { fontSize: 18, fontWeight: '800' },
+  bdDivider: { height: 1, marginVertical: 6 },
+  note: { gap: 8, padding: 12, borderRadius: 12, marginTop: 8, alignItems: 'flex-start' },
+  noteText: { flex: 1, fontSize: 13, fontWeight: '500', lineHeight: 18 },
+  emptyHint: { textAlign: 'center', fontSize: 14, paddingVertical: 8 },
+
+  // Scan modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  modalSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 36, gap: 12, alignItems: 'stretch' },
+  modalHandle: { width: 40, height: 5, borderRadius: 3, alignSelf: 'center', marginBottom: 8 },
+  modalIcon: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
+  modalTitle: { fontSize: 20, fontWeight: '800', textAlign: 'center' },
   modalSubtitle: { fontSize: 14, textAlign: 'center', marginBottom: 8, lineHeight: 20 },
-  modalBtn: { height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  modalBtn: { height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   modalBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  modalCancelBtn: { height: 52, borderRadius: 16, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  modalCancelBtn: { height: 46, alignItems: 'center', justifyContent: 'center' },
   modalCancelText: { fontSize: 15, fontWeight: '600' },
   scanningContainer: { alignItems: 'center', padding: 32, gap: 16 },
   scanningText: { fontSize: 16, fontWeight: '600' },
