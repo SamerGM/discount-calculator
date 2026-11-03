@@ -6,30 +6,25 @@ import {
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 
 const VISION_API_KEY = 'AIzaSyCdzCuPTWjo1j4HXjr6ZIgKtlZNNM_7YxE';
 
-// ─── Theme ────────────────────────────────────────────────────────────────────
+// ─── Theme (iOS system colors) ────────────────────────────────────────────────
 const lightTheme = {
-  bg: '#F2F3F7', surface: '#FFFFFF', surfaceAlt: '#E6E8EF', border: '#E4E7EE',
-  text: '#0F172A', textSecondary: '#64748B', textMuted: '#A0A8B8',
-  primary: '#4F46E5', primarySoft: '#EEF2FF', hero: '#111827', heroText: '#FFFFFF',
-  key: '#FFFFFF', keyFn: '#E6E8EF', keyText: '#0F172A',
-  success: '#059669', successSoft: '#D1FAE5',
-  danger: '#DC2626', dangerSoft: '#FEE2E2',
-  coupon: '#0891B2', couponSoft: '#CFFAFE',
-  tax: '#D97706', taxSoft: '#FEF3C7',
+  bg: '#F2F2F7', card: '#FFFFFF', fill: 'rgba(118,118,128,0.12)', separator: '#C6C6C8',
+  label: '#000000', secondary: '#8A8A8E', tertiary: '#C7C7CC',
+  tint: '#007AFF', tintSoft: 'rgba(0,122,255,0.08)', selected: '#E5E5EA',
+  green: '#34C759', greenText: '#248A3D', red: '#FF3B30', teal: '#30B0C7', orange: '#FF9500', indigo: '#5856D6',
+  tray: '#D1D3D9', key: '#FFFFFF', keyFn: '#ABB0BA', keyText: '#000000', keyShadow: 'rgba(0,0,0,0.3)',
 };
 const darkTheme = {
-  bg: '#05070D', surface: '#121826', surfaceAlt: '#1B2234', border: '#222B3F',
-  text: '#F3F4F6', textSecondary: '#9CA3AF', textMuted: '#5B6475',
-  primary: '#818CF8', primarySoft: '#1E1B4B', hero: '#1E1B4B', heroText: '#FFFFFF',
-  key: '#1B2234', keyFn: '#2A3349', keyText: '#F3F4F6',
-  success: '#34D399', successSoft: '#064E3B',
-  danger: '#F87171', dangerSoft: '#450A0A',
-  coupon: '#22D3EE', couponSoft: '#083344',
-  tax: '#FBBF24', taxSoft: '#451A03',
+  bg: '#000000', card: '#1C1C1E', fill: 'rgba(118,118,128,0.24)', separator: '#38383A',
+  label: '#FFFFFF', secondary: '#8D8D93', tertiary: '#48484A',
+  tint: '#0A84FF', tintSoft: 'rgba(10,132,255,0.16)', selected: '#2C2C2E',
+  green: '#30D158', greenText: '#30D158', red: '#FF453A', teal: '#40C8E0', orange: '#FF9F0A', indigo: '#5E5CE6',
+  tray: '#161618', key: '#3A3A3C', keyFn: '#2C2C2E', keyText: '#FFFFFF', keyShadow: 'rgba(0,0,0,0.6)',
 };
 
 // ─── Translations ─────────────────────────────────────────────────────────────
@@ -38,23 +33,24 @@ const translations = {
     appTitle: 'Shopping Calculator',
     simple: 'Simple', stacked: 'Stacked',
     price: 'Price', discount: 'Discount',
-    discountN: (n) => (n === 1 ? 'First discount' : 'Second discount'),
-    coupon: (n) => `Coupon ${n}`, addCoupon: 'Add coupon', tax: 'Sales tax',
-    pctOrAmt: 'Tap % / $ to switch',
-    finalPrice: 'FINAL PRICE', reset: 'Reset', details: 'Details',
+    discountN: (n) => (n === 1 ? 'First Discount' : 'Second Discount'),
+    coupon: (n) => `Coupon ${n}`, addCoupon: 'Add Coupon', tax: 'Sales Tax',
+    pctOrAmt: 'Tap % or $ to switch',
+    finalPrice: 'Final Price', reset: 'Reset', details: 'Details', done: 'Done',
     youSave: (a, p) => `You save ${a} (${p}%)`,
     inclTax: (a) => `incl. ${a} tax`,
-    enterPrice: 'Type a price with the keypad',
+    enterPrice: 'Enter a price to begin',
     priceHint: 'Tap the camera to scan a price tag',
-    breakdown: 'Breakdown', original: 'Original price', subtotal: 'Subtotal', total: 'Total',
-    effective: 'Effective discount', close: 'Close',
-    stackedNote: (parts, eq) => `${parts} stacked = ${eq}% off. Discounts apply one after another, they don't add up.`,
-    next: 'Next', removeCoupon: 'Remove coupon', clearField: 'Clear field', backspace: 'Delete',
+    breakdown: 'Breakdown', original: 'Original Price', subtotal: 'Subtotal', total: 'Total',
+    effective: 'Effective Discount',
+    stackedNote: (parts, eq) => `${parts} stacked = ${eq}% off. Discounts apply one after another, so they don't add up.`,
+    next: 'Next', removeCoupon: 'Remove coupon', clearField: 'Clear', backspace: 'Delete',
     switchType: 'Switch between percent and amount',
-    takePhoto: 'Take photo', chooseGallery: 'Choose from gallery', cancel: 'Cancel',
-    scanning: 'Scanning image...', scanFailed: 'Could not detect a price. Please enter it manually.',
-    scanTitle: 'Scan price tag',
-    scanSubtitle: 'Take a photo or pick one from your gallery to auto-fill the price and discount.',
+    takePhoto: 'Take Photo', chooseGallery: 'Choose from Library', cancel: 'Cancel',
+    scanning: 'Scanning…', scanFailed: 'Could not detect a price. Please enter it manually.',
+    scanTitle: 'Scan Price Tag',
+    scanSubtitle: 'Fill in the price and discount automatically from a photo.',
+    language: 'Language', appearance: 'Appearance',
   },
   ar: {
     appTitle: 'حاسبة التسوق',
@@ -62,21 +58,22 @@ const translations = {
     price: 'السعر', discount: 'الخصم',
     discountN: (n) => (n === 1 ? 'الخصم الأول' : 'الخصم الثاني'),
     coupon: (n) => `كوبون ${n}`, addCoupon: 'إضافة كوبون', tax: 'الضريبة',
-    pctOrAmt: 'اضغط % / $ للتبديل',
-    finalPrice: 'السعر النهائي', reset: 'مسح الكل', details: 'التفاصيل',
+    pctOrAmt: 'اضغط % أو $ للتبديل',
+    finalPrice: 'السعر النهائي', reset: 'مسح الكل', details: 'التفاصيل', done: 'تم',
     youSave: (a, p) => `وفّرت ‎${a}‏ (‎${p}%‏)`,
     inclTax: (a) => `شامل ضريبة ‎${a}‏`,
-    enterPrice: 'أدخل السعر من لوحة الأرقام',
+    enterPrice: 'أدخل السعر للبدء',
     priceHint: 'اضغط على الكاميرا لمسح بطاقة السعر',
     breakdown: 'التفاصيل', original: 'السعر الأصلي', subtotal: 'المجموع قبل الضريبة', total: 'الإجمالي',
-    effective: 'الخصم الفعلي', close: 'إغلاق',
+    effective: 'الخصم الفعلي',
     stackedNote: (parts, eq) => `${parts} متراكم = ${eq}% فعلياً. الخصومات تُطبَّق بالتسلسل ولا تُجمع.`,
-    next: 'التالي', removeCoupon: 'حذف الكوبون', clearField: 'مسح الحقل', backspace: 'حذف',
+    next: 'التالي', removeCoupon: 'حذف الكوبون', clearField: 'مسح', backspace: 'حذف',
     switchType: 'التبديل بين النسبة والمبلغ',
     takePhoto: 'التقاط صورة', chooseGallery: 'اختيار من المعرض', cancel: 'إلغاء',
-    scanning: 'جارٍ مسح الصورة...', scanFailed: 'لم يتم اكتشاف السعر. يرجى الإدخال يدوياً.',
+    scanning: 'جارٍ المسح…', scanFailed: 'لم يتم اكتشاف السعر. يرجى الإدخال يدوياً.',
     scanTitle: 'مسح بطاقة السعر',
-    scanSubtitle: 'التقط صورة أو اختر من المعرض لملء السعر والخصم تلقائياً.',
+    scanSubtitle: 'املأ السعر والخصم تلقائياً من صورة.',
+    language: 'اللغة', appearance: 'المظهر',
   },
 };
 
@@ -88,10 +85,17 @@ const trimNum = (n) => String(Math.round(n * 100) / 100);
 
 const MAX_COUPONS = 5;
 const MAX_DIGITS = 8;
-const FIELDS_PAD_TOP = 2;
-const FIELDS_GAP = 8;
 const DISCOUNT_PICKS = [10, 20, 25, 30, 40, 50, 70];
 const TAX_PICKS = [5, 7, 8, 10, 15];
+const HAIRLINE = StyleSheet.hairlineWidth;
+const leadPad = (rtl) => (rtl ? { paddingRight: 16 } : { paddingLeft: 16 });
+const trailPad = (rtl) => (rtl ? { paddingLeft: 16 } : { paddingRight: 16 });
+
+// Light haptic feedback (no-op on web).
+const haptic = {
+  tap: () => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); },
+  select: () => { if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {}); },
+};
 
 /**
  * Applies discounts, then coupons, in order on the running price, then tax.
@@ -182,22 +186,9 @@ const scanImageWithVisionAPI = async (base64Image) => {
   return extractPriceAndDiscount(text);
 };
 
-// ─── Bottom sheet (shared by scan + details) ──────────────────────────────────
-const Sheet = ({ visible, onClose, theme, children, dismissable = true }) => {
-  const insets = useSafeAreaInsets();
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={dismissable ? onClose : undefined}>
-      <Pressable style={styles.sheetOverlay} onPress={dismissable ? onClose : undefined}>
-        <Pressable style={[styles.sheet, { backgroundColor: theme.surface, paddingBottom: 24 + insets.bottom }]} onPress={() => {}}>
-          <View style={[styles.sheetHandle, { backgroundColor: theme.border }]} />
-          {children}
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-};
-
+// ─── Action sheet for scanning ────────────────────────────────────────────────
 const ScanSheet = ({ visible, onClose, onResult, theme, t }) => {
+  const insets = useSafeAreaInsets();
   const [scanning, setScanning] = useState(false);
   const handleScan = async (useCamera) => {
     try {
@@ -208,7 +199,7 @@ const ScanSheet = ({ visible, onClose, onResult, theme, t }) => {
         result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.5, allowsEditing: false, exif: false });
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') { Alert.alert('Permission needed', 'Gallery permission is required.'); return; }
+        if (status !== 'granted') { Alert.alert('Permission needed', 'Photo library permission is required.'); return; }
         result = await ImagePicker.launchImageLibraryAsync({ base64: true, quality: 0.5, allowsEditing: false, exif: false });
       }
       if (!result.canceled && result.assets?.[0]?.base64) {
@@ -223,87 +214,104 @@ const ScanSheet = ({ visible, onClose, onResult, theme, t }) => {
       Alert.alert('Error', e.message || 'Something went wrong. Please try again.');
     }
   };
+  const ActionRow = ({ label, onPress, bold, last }) => (
+    <Pressable onPress={onPress}
+      style={({ pressed }) => [styles.actionRow, { backgroundColor: pressed ? theme.selected : 'transparent' },
+        !last && { borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
+      <Text style={[styles.actionText, { color: theme.tint, fontWeight: bold ? '600' : '400' }]}>{label}</Text>
+    </Pressable>
+  );
   return (
-    <Sheet visible={visible} onClose={onClose} theme={theme} dismissable={!scanning}>
-      {scanning ? (
-        <View style={styles.scanningContainer}>
-          <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={[styles.scanningText, { color: theme.text }]}>{t.scanning}</Text>
-        </View>
-      ) : (
-        <>
-          <View style={[styles.sheetIcon, { backgroundColor: theme.primarySoft }]}>
-            <Ionicons name="scan-outline" size={28} color={theme.primary} />
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={scanning ? undefined : onClose}>
+      <Pressable style={[styles.dim, { paddingBottom: insets.bottom + 8 }]} onPress={scanning ? undefined : onClose}>
+        <Pressable onPress={() => {}} style={styles.actionWrap}>
+          <View style={[styles.actionGroup, { backgroundColor: theme.card }]}>
+            {scanning ? (
+              <View style={styles.scanningContainer}>
+                <ActivityIndicator size="large" color={theme.secondary} />
+                <Text style={[styles.actionSubtitle, { color: theme.secondary }]}>{t.scanning}</Text>
+              </View>
+            ) : (
+              <>
+                <View style={[styles.actionHeader, { borderBottomColor: theme.separator }]}>
+                  <Text style={[styles.actionTitle, { color: theme.secondary }]}>{t.scanTitle}</Text>
+                  <Text style={[styles.actionSubtitle, { color: theme.secondary }]}>{t.scanSubtitle}</Text>
+                </View>
+                <ActionRow label={t.takePhoto} onPress={() => handleScan(true)} />
+                <ActionRow label={t.chooseGallery} onPress={() => handleScan(false)} last />
+              </>
+            )}
           </View>
-          <Text style={[styles.sheetTitle, { color: theme.text }]}>{t.scanTitle}</Text>
-          <Text style={[styles.sheetSubtitle, { color: theme.textSecondary }]}>{t.scanSubtitle}</Text>
-          <Pressable style={({ pressed }) => [styles.sheetBtn, { backgroundColor: theme.primary, opacity: pressed ? 0.85 : 1 }]} onPress={() => handleScan(true)}>
-            <Ionicons name="camera-outline" size={20} color="#fff" />
-            <Text style={styles.sheetBtnText}>{t.takePhoto}</Text>
-          </Pressable>
-          <Pressable style={({ pressed }) => [styles.sheetBtn, { backgroundColor: theme.surfaceAlt, opacity: pressed ? 0.85 : 1 }]} onPress={() => handleScan(false)}>
-            <Ionicons name="image-outline" size={20} color={theme.text} />
-            <Text style={[styles.sheetBtnText, { color: theme.text }]}>{t.chooseGallery}</Text>
-          </Pressable>
-          <Pressable style={styles.sheetGhostBtn} onPress={onClose}>
-            <Text style={[styles.sheetGhostText, { color: theme.textSecondary }]}>{t.cancel}</Text>
-          </Pressable>
-        </>
-      )}
-    </Sheet>
+          {!scanning && (
+            <View style={[styles.actionGroup, { backgroundColor: theme.card }]}>
+              <ActionRow label={t.cancel} onPress={onClose} bold last />
+            </View>
+          )}
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 };
 
-const BreakdownRow = ({ label, value, color, theme, rtl, bold }) => (
-  <View style={[styles.bdRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-    <Text style={[bold ? styles.bdLabelBold : styles.bdLabel, { color: bold ? theme.text : theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{label}</Text>
-    <Text style={[bold ? styles.bdValueBold : styles.bdValue, { color: color || theme.text }]}>{value}</Text>
-  </View>
-);
+// ─── Breakdown page sheet ─────────────────────────────────────────────────────
+const DetailsSheet = ({ visible, onClose, theme, t, rtl, result, stepLabel, stackNote }) => {
+  const insets = useSafeAreaInsets();
+  const rows = [{ label: t.original, value: money(result.original) }];
+  result.steps.filter((s) => s.kind !== 'tax').forEach((s) => rows.push({ label: stepLabel(s), value: `−${money(-s.amount)}`, color: theme.greenText }));
+  const taxRows = [];
+  if (result.tax > 0) {
+    taxRows.push({ label: t.subtotal, value: money(result.subtotal) });
+    result.steps.filter((s) => s.kind === 'tax').forEach((s) => taxRows.push({ label: stepLabel(s), value: `+${money(s.amount)}` }));
+  }
+  const totals = [{ label: t.total, value: money(result.final), bold: true }];
+  if (result.savings > 0) totals.push({ label: t.effective, value: `${result.savingsPct.toFixed(1)}%`, color: theme.greenText });
 
-const DetailsSheet = ({ visible, onClose, theme, t, rtl, result, stepLabel, stepColor, stackNote }) => (
-  <Sheet visible={visible} onClose={onClose} theme={theme}>
-    <Text style={[styles.sheetTitle, { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>{t.breakdown}</Text>
-    <View style={{ gap: 2, marginTop: 4 }}>
-      <BreakdownRow label={t.original} value={money(result.original)} theme={theme} rtl={rtl} />
-      {result.steps.filter((s) => s.kind !== 'tax').map((s, i) => (
-        <BreakdownRow key={`${s.kind}-${i}`} label={stepLabel(s)} value={`− ${money(-s.amount)}`} color={stepColor(s)} theme={theme} rtl={rtl} />
-      ))}
-      {result.tax > 0 && (
-        <>
-          <View style={[styles.bdDivider, { backgroundColor: theme.border }]} />
-          <BreakdownRow label={t.subtotal} value={money(result.subtotal)} theme={theme} rtl={rtl} />
-          {result.steps.filter((s) => s.kind === 'tax').map((s) => (
-            <BreakdownRow key="tax" label={stepLabel(s)} value={`+ ${money(s.amount)}`} color={theme.tax} theme={theme} rtl={rtl} />
-          ))}
-        </>
-      )}
-      <View style={[styles.bdDivider, { backgroundColor: theme.border }]} />
-      <BreakdownRow label={t.total} value={money(result.final)} color={theme.primary} theme={theme} rtl={rtl} bold />
-      {result.savings > 0 && (
-        <BreakdownRow label={t.effective} value={`${result.savingsPct.toFixed(1)}%`} color={theme.success} theme={theme} rtl={rtl} />
-      )}
-      {stackNote && (
-        <View style={[styles.note, { backgroundColor: theme.primarySoft, flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-          <Ionicons name="information-circle-outline" size={16} color={theme.primary} />
-          <Text style={[styles.noteText, { color: theme.primary, textAlign: rtl ? 'right' : 'left' }]}>{stackNote}</Text>
+  const Group = ({ items }) => (
+    <View style={[styles.group, { backgroundColor: theme.card }]}>
+      {items.map((r, i) => (
+        <View key={i} style={[styles.detailRow, { flexDirection: rtl ? 'row-reverse' : 'row' },
+          i < items.length - 1 && { borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
+          <Text style={[styles.detailLabel, { color: theme.label, fontWeight: r.bold ? '600' : '400', textAlign: rtl ? 'right' : 'left' }]}>{r.label}</Text>
+          <Text style={[styles.detailValue, { color: r.color || (r.bold ? theme.label : theme.secondary), fontWeight: r.bold ? '600' : '400' }]}>{r.value}</Text>
         </View>
-      )}
+      ))}
     </View>
-    <Pressable style={({ pressed }) => [styles.sheetBtn, { backgroundColor: theme.surfaceAlt, marginTop: 12, opacity: pressed ? 0.85 : 1 }]} onPress={onClose}>
-      <Text style={[styles.sheetBtnText, { color: theme.text }]}>{t.close}</Text>
-    </Pressable>
-  </Sheet>
-);
+  );
 
-// ─── Display pieces ───────────────────────────────────────────────────────────
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.dim}>
+        <View style={[styles.pageSheet, { backgroundColor: theme.bg, paddingBottom: insets.bottom + 16 }]}>
+          <View style={[styles.grabber, { backgroundColor: theme.tertiary }]} />
+          <View style={[styles.sheetNav, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+            <View style={styles.sheetNavSide} />
+            <Text style={[styles.sheetNavTitle, { color: theme.label }]}>{t.breakdown}</Text>
+            <Pressable onPress={onClose} hitSlop={10} style={[styles.sheetNavSide, { alignItems: rtl ? 'flex-start' : 'flex-end' }]}>
+              <Text style={[styles.navButton, { color: theme.tint, fontWeight: '600' }]}>{t.done}</Text>
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={{ gap: 20, paddingHorizontal: 16, paddingTop: 8 }}>
+            <Group items={rows} />
+            {taxRows.length > 0 && <Group items={taxRows} />}
+            <View>
+              <Group items={totals} />
+              {stackNote && <Text style={[styles.groupFooter, { color: theme.secondary, textAlign: rtl ? 'right' : 'left' }]}>{stackNote}</Text>}
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// ─── Controls ─────────────────────────────────────────────────────────────────
 const Caret = ({ color }) => {
   const opacity = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     const driver = Platform.OS !== 'web';
     const blink = Animated.loop(Animated.sequence([
-      Animated.timing(opacity, { toValue: 0, duration: 450, useNativeDriver: driver }),
-      Animated.timing(opacity, { toValue: 1, duration: 450, useNativeDriver: driver }),
+      Animated.timing(opacity, { toValue: 0, duration: 500, useNativeDriver: driver }),
+      Animated.timing(opacity, { toValue: 1, duration: 500, useNativeDriver: driver }),
     ]));
     blink.start();
     return () => blink.stop();
@@ -311,72 +319,87 @@ const Caret = ({ color }) => {
   return <Animated.View style={[styles.caret, { backgroundColor: color, opacity }]} />;
 };
 
-const Segmented = ({ options, value, onChange, theme, rtl }) => (
-  <View style={[styles.seg, { backgroundColor: theme.surfaceAlt, flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+const SegmentedControl = ({ options, value, onChange, theme, rtl }) => (
+  <View style={[styles.seg, { backgroundColor: theme.fill, flexDirection: rtl ? 'row-reverse' : 'row' }]}>
     {options.map((o) => {
       const active = o.value === value;
       return (
-        <Pressable key={o.value} onPress={() => onChange(o.value)} accessibilityRole="button" accessibilityState={{ selected: active }}
-          style={[styles.segItem, active && [styles.segItemActive, { backgroundColor: theme.surface }]]}>
-          <Text style={[styles.segText, { color: active ? theme.primary : theme.textSecondary }]}>{o.label}</Text>
+        <Pressable key={o.value} onPress={() => { haptic.select(); onChange(o.value); }}
+          accessibilityRole="button" accessibilityState={{ selected: active }}
+          style={[styles.segItem, active && [styles.segItemActive, { backgroundColor: theme === darkTheme ? '#636366' : '#FFFFFF' }]]}>
+          <Text style={[styles.segText, { color: theme.label, fontWeight: active ? '600' : '500' }]}>{o.label}</Text>
         </Pressable>
       );
     })}
   </View>
 );
 
-const FieldRow = ({ field, active, onPress, onToggleType, onRemove, onScan, theme, rtl, t }) => {
+const NavIcon = ({ name, onPress, theme, label }) => (
+  <Pressable onPress={onPress} hitSlop={8} accessibilityLabel={label}
+    style={({ pressed }) => [styles.navIcon, { backgroundColor: theme.fill, opacity: pressed ? 0.5 : 1 }]}>
+    <Ionicons name={name} size={19} color={theme.tint} />
+  </Pressable>
+);
+
+// One row of the inset grouped list.
+const FieldRow = ({ field, active, last, onPress, onToggleType, onRemove, onScan, theme, rtl, t }) => {
   const row = rtl ? 'row-reverse' : 'row';
   const empty = field.value === '';
+  const valueColor = active ? theme.tint : empty ? theme.tertiary : theme.label;
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: active }}
-      style={[styles.field, { flexDirection: row, backgroundColor: theme.surface, borderColor: active ? field.color : theme.border }]}>
-      <View style={[styles.fieldIcon, { backgroundColor: field.soft }]}>
-        <Ionicons name={field.icon} size={16} color={field.color} />
-      </View>
-      <Text numberOfLines={1} style={[styles.fieldLabel, { color: active ? theme.text : theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{field.label}</Text>
-
-      {field.adjustable && (
-        <Pressable onPress={onToggleType} hitSlop={6} accessibilityLabel={t.switchType}
-          style={[styles.typePill, { backgroundColor: field.soft }]}>
-          <Text style={[styles.typePillText, { color: field.color }]}>{field.type === 'pct' ? '%' : '$'}</Text>
-          <Ionicons name="swap-horizontal" size={12} color={field.color} />
-        </Pressable>
-      )}
-
-      {/* Numbers always read left-to-right, even in Arabic. */}
-      <View style={styles.fieldValueWrap}>
-        {field.type === 'amt' && <Text style={[styles.fieldAffix, { color: empty ? theme.textMuted : theme.textSecondary }]}>$</Text>}
-        <Text numberOfLines={1} style={[styles.fieldValue, { color: empty ? theme.textMuted : theme.text }]}>{empty ? '0' : field.value}</Text>
-        {active && <Caret color={field.color} />}
-        {field.type === 'pct' && <Text style={[styles.fieldAffix, { color: empty ? theme.textMuted : theme.textSecondary }]}>%</Text>}
-      </View>
-
-      {onScan && (
-        <Pressable onPress={onScan} hitSlop={6} accessibilityLabel={t.scanTitle} style={[styles.fieldAction, { backgroundColor: theme.primarySoft }]}>
-          <Ionicons name="camera-outline" size={18} color={theme.primary} />
-        </Pressable>
-      )}
+      style={({ pressed }) => [styles.listRow, leadPad(rtl), { flexDirection: row, backgroundColor: active ? theme.tintSoft : pressed ? theme.selected : 'transparent' }]}>
       {onRemove && (
-        <Pressable onPress={onRemove} hitSlop={6} accessibilityLabel={t.removeCoupon} style={[styles.fieldAction, { backgroundColor: theme.dangerSoft }]}>
-          <Ionicons name="close" size={18} color={theme.danger} />
+        <Pressable onPress={onRemove} hitSlop={8} accessibilityLabel={t.removeCoupon}>
+          <Ionicons name="remove-circle" size={22} color={theme.red} />
         </Pressable>
       )}
+      <View style={[styles.rowIcon, { backgroundColor: field.color }]}>
+        <Ionicons name={field.icon} size={16} color="#FFFFFF" />
+      </View>
+      <View style={[styles.rowBody, trailPad(rtl), { flexDirection: row }, !last && { borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
+        <Text numberOfLines={1} style={[styles.rowLabel, { color: theme.label, textAlign: rtl ? 'right' : 'left' }]}>{field.label}</Text>
+        {field.adjustable && (
+          <Pressable onPress={onToggleType} hitSlop={6} accessibilityLabel={t.switchType}
+            style={[styles.typeToggle, { backgroundColor: theme.fill }]}>
+            {['pct', 'amt'].map((ty) => (
+              <View key={ty} style={[styles.typeOpt, field.type === ty && { backgroundColor: theme === darkTheme ? '#636366' : '#FFFFFF' }]}>
+                <Text style={[styles.typeOptText, { color: field.type === ty ? theme.label : theme.secondary }]}>{ty === 'pct' ? '%' : '$'}</Text>
+              </View>
+            ))}
+          </Pressable>
+        )}
+        {/* Numbers always read left-to-right, even in Arabic. */}
+        <View style={styles.rowValueWrap}>
+          {field.type === 'amt' && <Text style={[styles.rowValue, { color: valueColor }]}>$</Text>}
+          <Text numberOfLines={1} style={[styles.rowValue, { color: valueColor }]}>{empty ? '0' : field.value}</Text>
+          {active && <Caret color={theme.tint} />}
+          {field.type === 'pct' && <Text style={[styles.rowValue, { color: valueColor }]}>%</Text>}
+        </View>
+        {onScan && (
+          <Pressable onPress={onScan} hitSlop={8} accessibilityLabel={t.scanTitle}>
+            <Ionicons name="camera" size={22} color={theme.tint} />
+          </Pressable>
+        )}
+      </View>
     </Pressable>
   );
 };
 
 const Key = ({ label, icon, onPress, onLongPress, theme, height, variant = 'digit', disabled, flex = 1, a11y }) => {
-  const bg = variant === 'primary' ? theme.primary : variant === 'fn' ? theme.keyFn : theme.key;
-  const fg = variant === 'primary' ? '#FFFFFF' : theme.keyText;
+  const isPrimary = variant === 'primary';
   return (
     <Pressable
-      onPress={onPress} onLongPress={onLongPress} disabled={disabled}
+      onPress={() => { haptic.tap(); onPress(); }} onLongPress={onLongPress} disabled={disabled}
       accessibilityRole="button" accessibilityLabel={a11y || label}
-      style={({ pressed }) => [styles.key, { flex, height, backgroundColor: bg, opacity: disabled ? 0.35 : pressed ? 0.6 : 1 }]}
+      style={({ pressed }) => {
+        const base = isPrimary ? theme.tint : variant === 'fn' ? theme.keyFn : theme.key;
+        const down = isPrimary ? theme.tint : variant === 'fn' ? theme.key : theme.keyFn;
+        return [styles.key, { flex, height, backgroundColor: pressed ? down : base, shadowColor: theme.keyShadow, opacity: disabled ? 0.4 : pressed && isPrimary ? 0.8 : 1 }];
+      }}
     >
-      {icon ? <Ionicons name={icon} size={variant === 'primary' ? 20 : 22} color={fg} /> : null}
-      {label ? <Text style={[variant === 'digit' ? styles.keyDigit : styles.keyFnText, { color: fg }]}>{label}</Text> : null}
+      {icon ? <Ionicons name={icon} size={22} color={isPrimary ? '#FFFFFF' : theme.keyText} /> : null}
+      {label ? <Text style={[variant === 'digit' ? styles.keyDigit : styles.keyFnText, { color: isPrimary ? '#FFFFFF' : theme.keyText }]}>{label}</Text> : null}
     </Pressable>
   );
 };
@@ -423,32 +446,33 @@ const CalculatorScreen = () => {
   }, []);
 
   const persist = (key, value) => { AsyncStorage.setItem(key, value).catch(() => {}); };
-  const toggleTheme = () => { setIsDark((d) => { persist('theme', d ? 'light' : 'dark'); return !d; }); };
-  const toggleLang = () => { setLang((l) => { const n = l === 'en' ? 'ar' : 'en'; persist('lang', n); return n; }); };
+  const toggleTheme = () => { haptic.select(); setIsDark((d) => { persist('theme', d ? 'light' : 'dark'); return !d; }); };
+  const toggleLang = () => { haptic.select(); setLang((l) => { const n = l === 'en' ? 'ar' : 'en'; persist('lang', n); return n; }); };
   const changeMode = (m) => { setMode(m); persist('mode', m); };
 
   const theme = isDark ? darkTheme : lightTheme;
   const t = translations[lang];
   const rtl = lang === 'ar';
   const stacked = mode === 'stacked';
+  const compact = height < 720;
 
   // Ordered list of editable fields; "Next" walks through it.
   const fields = useMemo(() => {
     const list = [{
-      key: 'price', kind: 'price', label: t.price, icon: 'pricetag-outline',
-      color: theme.primary, soft: theme.primarySoft, value: form.price, type: 'amt', adjustable: false,
+      key: 'price', kind: 'price', label: t.price, icon: 'pricetag',
+      color: theme.tint, value: form.price, type: 'amt', adjustable: false,
     }];
     form.discounts.slice(0, stacked ? 2 : 1).forEach((d, i) => list.push({
-      key: `d${i}`, kind: 'discount', label: stacked ? t.discountN(i + 1) : t.discount, icon: 'pricetags-outline',
-      color: theme.success, soft: theme.successSoft, value: d.value, type: d.type, adjustable: true,
+      key: `d${i}`, kind: 'discount', label: stacked ? t.discountN(i + 1) : t.discount, icon: 'pricetags',
+      color: theme.green, value: d.value, type: d.type, adjustable: true,
     }));
     form.coupons.forEach((c, i) => list.push({
-      key: `c${c.id}`, kind: 'coupon', label: t.coupon(i + 1), icon: 'ticket-outline', id: c.id,
-      color: theme.coupon, soft: theme.couponSoft, value: c.value, type: c.type, adjustable: true,
+      key: `c${c.id}`, kind: 'coupon', label: t.coupon(i + 1), icon: 'ticket', id: c.id,
+      color: theme.teal, value: c.value, type: c.type, adjustable: true,
     }));
     list.push({
-      key: 'tax', kind: 'tax', label: t.tax, icon: 'receipt-outline',
-      color: theme.tax, soft: theme.taxSoft, value: form.tax, type: 'pct', adjustable: false,
+      key: 'tax', kind: 'tax', label: t.tax, icon: 'receipt',
+      color: theme.orange, value: form.tax, type: 'pct', adjustable: false,
     });
     return list;
   }, [form, stacked, t, theme]);
@@ -461,30 +485,29 @@ const CalculatorScreen = () => {
     if (!fields.some((f) => f.key === selected)) setSelected('price');
   }, [fields, selected]);
 
-  // Keep the field being edited visible above the keypad.
-  // Runs after layout settles, also when fields are inserted above (e.g. switching to Stacked).
+  // Keep the field being edited visible above the keypad. Positions come from measured
+  // heights in render order (onLayout only reports size changes on web, so a stored y
+  // can go stale when rows are inserted). Runs after layout settles.
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Positions come from measured heights in render order (onLayout only reports
-      // size changes on web, so a stored y can go stale when rows are inserted).
       if (!listRef.current) return;
       const order = [];
       fields.forEach((f) => {
         if (f.kind === 'tax' && showAddCoupon) order.push('add');
         order.push(f.key);
       });
-      let y = FIELDS_PAD_TOP;
+      let y = 0;
       let l = null;
       for (const key of order) {
         const h = heights.current[key];
         if (h == null) return;
         if (key === current.key) { l = { y, height: h }; break; }
-        y += h + FIELDS_GAP;
+        y += h;
       }
       if (!l) return;
-      if (l.y < scrollY.current) listRef.current.scrollTo({ y: Math.max(0, l.y - 4), animated: true });
+      if (l.y < scrollY.current) listRef.current.scrollTo({ y: Math.max(0, l.y), animated: true });
       else if (l.y + l.height > scrollY.current + viewH.current) {
-        listRef.current.scrollTo({ y: l.y + l.height - viewH.current + 4, animated: true });
+        listRef.current.scrollTo({ y: l.y + l.height - viewH.current + LIST_PAD, animated: true });
       }
     }, 80);
     return () => clearTimeout(timer);
@@ -507,6 +530,8 @@ const CalculatorScreen = () => {
     return { type, value };
   });
 
+  const selectField = (key) => { if (key !== selected) haptic.select(); setSelected(key); };
+
   const pressKey = (key) => {
     if (key === 'next') {
       const i = fields.findIndex((f) => f.key === current.key);
@@ -517,16 +542,16 @@ const CalculatorScreen = () => {
     updateField(current.key, (adj) => ({ value: applyKey(adj.value, key, adj.type === 'pct') }));
   };
 
-  const pickPreset = (n) => updateField(current.key, (adj) => ({ value: adj.value === String(n) ? '' : String(n) }));
+  const pickPreset = (n) => { haptic.select(); updateField(current.key, (adj) => ({ value: adj.value === String(n) ? '' : String(n) })); };
 
   const addCoupon = () => {
+    haptic.select();
     const id = nextId.current++;
     setForm((f) => ({ ...f, coupons: [...f.coupons, { id, value: '', type: 'pct' }] }));
     setSelected(`c${id}`);
-    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
   };
-  const removeCoupon = (id) => setForm((f) => ({ ...f, coupons: f.coupons.filter((c) => c.id !== id) }));
-  const reset = () => { setForm(emptyForm()); setSelected('price'); };
+  const removeCoupon = (id) => { haptic.tap(); setForm((f) => ({ ...f, coupons: f.coupons.filter((c) => c.id !== id) })); };
+  const reset = () => { haptic.tap(); setForm(emptyForm()); setSelected('price'); };
 
   const result = useMemo(() => calculate({
     price: form.price,
@@ -543,7 +568,6 @@ const CalculatorScreen = () => {
     if (s.kind === 'coupon') return `${t.coupon(s.index + 1)} (${adjText(s)})`;
     return `${t.tax} (${trimNum(s.value)}%)`;
   };
-  const stepColor = (s) => (s.kind === 'tax' ? theme.tax : s.kind === 'coupon' ? theme.coupon : theme.success);
   const pctDiscounts = result.steps.filter((s) => s.kind === 'discount' && s.type === 'pct');
   const stackNote = stacked && pctDiscounts.length >= 2
     ? t.stackedNote(
@@ -553,17 +577,19 @@ const CalculatorScreen = () => {
     : null;
 
   // Size keys to the screen so the keypad fits small and large phones.
-  const keyH = Math.max(46, Math.min(62, Math.round(height * 0.068)));
-  const compact = height < 720;
+  const keyH = Math.max(42, Math.min(52, Math.round(height * 0.058)));
   const row = rtl ? 'row-reverse' : 'row';
+  const align = rtl ? 'right' : 'left';
 
   if (!loaded) return <View style={{ flex: 1, backgroundColor: theme.bg }} />;
 
   const presets = current.kind === 'tax' ? TAX_PICKS
     : current.adjustable && current.type === 'pct' ? DISCOUNT_PICKS : null;
 
+  const lastFieldKey = fields[fields.length - 1].key;
+
   return (
-    <View style={[styles.screen, { backgroundColor: theme.bg, paddingTop: insets.top + 8 }]}>
+    <View style={[styles.screen, { backgroundColor: theme.bg, paddingTop: insets.top + 6 }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.bg} />
       <ScanSheet visible={scanVisible} onClose={() => setScanVisible(false)} theme={theme} t={t}
         onResult={({ price, discount }) => {
@@ -571,130 +597,128 @@ const CalculatorScreen = () => {
           if (discount) updateField('d0', () => ({ value: discount, type: 'pct' }));
         }} />
       <DetailsSheet visible={detailsVisible} onClose={() => setDetailsVisible(false)} theme={theme} t={t} rtl={rtl}
-        result={result} stepLabel={stepLabel} stepColor={stepColor} stackNote={stackNote} />
+        result={result} stepLabel={stepLabel} stackNote={stackNote} />
 
-      {/* Header */}
-      <View style={[styles.header, { flexDirection: row }]}>
-        <View style={{ flex: 1 }}>
-          <Segmented
-            options={[{ value: 'simple', label: t.simple }, { value: 'stacked', label: t.stacked }]}
-            value={mode} onChange={changeMode} theme={theme} rtl={rtl}
-          />
-        </View>
-        <Pressable onPress={toggleLang} accessibilityLabel="Change language"
-          style={({ pressed }) => [styles.iconBtn, { backgroundColor: theme.surface, borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}>
-          <Text style={[styles.iconBtnText, { color: theme.text }]}>{lang === 'en' ? 'ع' : 'EN'}</Text>
-        </Pressable>
-        <Pressable onPress={toggleTheme} accessibilityLabel="Toggle dark mode"
-          style={({ pressed }) => [styles.iconBtn, { backgroundColor: theme.surface, borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}>
-          <Ionicons name={isDark ? 'sunny-outline' : 'moon-outline'} size={18} color={theme.text} />
-        </Pressable>
+      {/* Large title with trailing buttons */}
+      <View style={[styles.titleRow, { flexDirection: row }]}>
+        <Text style={[styles.largeTitle, compact && styles.largeTitleCompact, { color: theme.label, textAlign: align }]}
+          numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{t.appTitle}</Text>
+        <NavIcon name="globe-outline" onPress={toggleLang} theme={theme} label={t.language} />
+        <NavIcon name={isDark ? 'sunny-outline' : 'moon-outline'} onPress={toggleTheme} theme={theme} label={t.appearance} />
       </View>
 
-      {/* Result display */}
-      <View style={[styles.display, { backgroundColor: theme.hero }, compact && { paddingVertical: 10 }]}>
-        <View style={[styles.displayTop, { flexDirection: row }]}>
-          <Text style={styles.displayLabel}>{t.finalPrice}</Text>
-          <View style={[styles.displayActions, { flexDirection: row }]}>
-            <Pressable onPress={() => setDetailsVisible(true)} disabled={result.original <= 0} hitSlop={6}
-              style={({ pressed }) => [styles.displayBtn, { flexDirection: row, opacity: result.original <= 0 ? 0.4 : pressed ? 0.7 : 1 }]}>
-              <Ionicons name="list-outline" size={14} color="#fff" />
-              <Text style={styles.displayBtnText}>{t.details}</Text>
-            </Pressable>
-            <Pressable onPress={reset} disabled={!canReset} hitSlop={6}
-              style={({ pressed }) => [styles.displayBtn, { flexDirection: row, opacity: !canReset ? 0.4 : pressed ? 0.7 : 1 }]}>
-              <Ionicons name="refresh" size={14} color="#fff" />
-              <Text style={styles.displayBtnText}>{t.reset}</Text>
-            </Pressable>
+      <View style={styles.segWrap}>
+        <SegmentedControl
+          options={[{ value: 'simple', label: t.simple }, { value: 'stacked', label: t.stacked }]}
+          value={mode} onChange={changeMode} theme={theme} rtl={rtl}
+        />
+      </View>
+
+      {/* Result */}
+      <View style={[styles.group, styles.resultCard, { backgroundColor: theme.card }, compact && { paddingVertical: 10 }]}>
+        <View style={[styles.resultTop, { flexDirection: row }]}>
+          <Text style={[styles.resultLabel, { color: theme.secondary }]}>{t.finalPrice}</Text>
+          <Pressable onPress={reset} disabled={!canReset} hitSlop={10}>
+            <Text style={[styles.navButton, { color: canReset ? theme.tint : theme.tertiary }]}>{t.reset}</Text>
+          </Pressable>
+        </View>
+        <View style={[styles.resultValueRow, { flexDirection: row }]}>
+          <Text style={[styles.resultValue, compact && { fontSize: 38 }, { color: theme.label }]} numberOfLines={1} adjustsFontSizeToFit>
+            {money(result.final)}
+          </Text>
+          {result.savings > 0 && <Text style={[styles.resultStrike, { color: theme.secondary }]}>{money(result.original)}</Text>}
+        </View>
+        <View style={[styles.resultBottom, { flexDirection: row }]}>
+          <View style={{ flex: 1 }}>
+            {result.savings > 0 ? (
+              <Text style={[styles.resultSave, { color: theme.greenText, textAlign: align }]} numberOfLines={1}>
+                {t.youSave(money(result.savings), result.savingsPct.toFixed(1))}
+              </Text>
+            ) : (
+              <Text style={[styles.resultSub, { color: theme.secondary, textAlign: align }]}>{t.enterPrice}</Text>
+            )}
+            {result.tax > 0 && !compact && (
+              <Text style={[styles.resultSub, { color: theme.secondary, textAlign: align }]}>{t.inclTax(money(result.tax))}</Text>
+            )}
           </View>
-        </View>
-        <View style={[styles.displayValueRow, { flexDirection: row }]}>
-          <Text style={[styles.displayValue, compact && { fontSize: 34 }]} numberOfLines={1} adjustsFontSizeToFit>{money(result.final)}</Text>
-          {result.savings > 0 && <Text style={styles.displayStrike}>{money(result.original)}</Text>}
-        </View>
-        <View style={[styles.displayPills, { flexDirection: row }]}>
-          {result.savings > 0 ? (
-            <View style={[styles.savePill, { flexDirection: row }]}>
-              <Ionicons name="trending-down" size={14} color="#065F46" />
-              <Text style={styles.savePillText}>{t.youSave(money(result.savings), result.savingsPct.toFixed(1))}</Text>
-            </View>
-          ) : (
-            <Text style={styles.displayHint}>{t.enterPrice}</Text>
-          )}
-          {result.tax > 0 && !compact && (
-            <View style={styles.mutedPill}><Text style={styles.mutedPillText}>{t.inclTax(money(result.tax))}</Text></View>
-          )}
+          <Pressable onPress={() => setDetailsVisible(true)} disabled={result.original <= 0} hitSlop={10}
+            style={[styles.detailsBtn, { flexDirection: row }]}>
+            <Text style={[styles.navButton, { color: result.original > 0 ? theme.tint : theme.tertiary }]}>{t.details}</Text>
+            <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={result.original > 0 ? theme.tint : theme.tertiary} />
+          </Pressable>
         </View>
       </View>
 
-      {/* Fields */}
+      {/* Inset grouped list of fields */}
       <ScrollView
-        ref={listRef} style={styles.fieldList} contentContainerStyle={styles.fields} showsVerticalScrollIndicator={false}
+        ref={listRef} style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}
         onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }} scrollEventThrottle={32}
         onLayout={(e) => { viewH.current = e.nativeEvent.layout.height; }}
       >
-        {fields.map((f) => (
-          <React.Fragment key={f.key}>
-            {f.kind === 'tax' && showAddCoupon && (
-              <Pressable onPress={addCoupon} onLayout={(e) => { heights.current.add = e.nativeEvent.layout.height; }} style={({ pressed }) => [styles.addBtn, { flexDirection: row, borderColor: theme.coupon, opacity: pressed ? 0.7 : 1 }]}>
-                <Ionicons name="add" size={18} color={theme.coupon} />
-                <Text style={[styles.addBtnText, { color: theme.coupon }]}>{t.addCoupon}</Text>
-              </Pressable>
-            )}
-            <View onLayout={(e) => { heights.current[f.key] = e.nativeEvent.layout.height; }}>
-              <FieldRow
-                field={f} active={f.key === current.key} theme={theme} rtl={rtl} t={t}
-                onPress={() => setSelected(f.key)}
-                onToggleType={() => { setSelected(f.key); toggleType(f.key); }}
-                onScan={f.kind === 'price' ? () => setScanVisible(true) : null}
-                onRemove={f.kind === 'coupon' ? () => removeCoupon(f.id) : null}
-              />
-            </View>
-          </React.Fragment>
-        ))}
+        <View style={[styles.group, { backgroundColor: theme.card }]}>
+          {fields.map((f) => (
+            <React.Fragment key={f.key}>
+              {f.kind === 'tax' && showAddCoupon && (
+                <Pressable onPress={addCoupon} onLayout={(e) => { heights.current.add = e.nativeEvent.layout.height; }}
+                  style={({ pressed }) => [styles.listRow, leadPad(rtl), { flexDirection: row, backgroundColor: pressed ? theme.selected : 'transparent' }]}>
+                  <Ionicons name="add-circle" size={22} color={theme.green} />
+                  <View style={[styles.rowBody, trailPad(rtl), { flexDirection: row, borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
+                    <Text style={[styles.rowLabel, { color: theme.tint, textAlign: align }]}>{t.addCoupon}</Text>
+                  </View>
+                </Pressable>
+              )}
+              <View onLayout={(e) => { heights.current[f.key] = e.nativeEvent.layout.height; }}>
+                <FieldRow
+                  field={f} active={f.key === current.key} last={f.key === lastFieldKey} theme={theme} rtl={rtl} t={t}
+                  onPress={() => selectField(f.key)}
+                  onToggleType={() => { haptic.select(); setSelected(f.key); toggleType(f.key); }}
+                  onScan={f.kind === 'price' ? () => setScanVisible(true) : null}
+                  onRemove={f.kind === 'coupon' ? () => removeCoupon(f.id) : null}
+                />
+              </View>
+            </React.Fragment>
+          ))}
+        </View>
       </ScrollView>
 
-      {/* Presets / hint strip */}
-      <View style={styles.strip}>
-        {presets ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled"
-            contentContainerStyle={[styles.stripInner, { flexDirection: row }]}>
-            {presets.map((n) => {
-              const active = current.value === String(n);
-              return (
-                <Pressable key={n} onPress={() => pickPreset(n)}
-                  style={[styles.chip, { backgroundColor: active ? current.color : theme.surface, borderColor: active ? current.color : theme.border }]}>
-                  <Text style={[styles.chipText, { color: active ? '#fff' : theme.textSecondary }]}>{n}%</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        ) : (
-          <View style={[styles.stripInner, { flexDirection: row, alignItems: 'center' }]}>
-            <Ionicons name={current.adjustable ? 'swap-horizontal' : 'camera-outline'} size={14} color={theme.textMuted} />
-            <Text style={[styles.stripHint, { color: theme.textMuted }]}>{current.adjustable ? t.pctOrAmt : t.priceHint}</Text>
+      {/* Keyboard tray: suggestion bar + keypad */}
+      <View style={[styles.tray, { backgroundColor: theme.tray, paddingBottom: Math.max(insets.bottom, 8) }]}>
+        <View style={styles.suggestBar}>
+          {presets ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled"
+              contentContainerStyle={[styles.suggestInner, { flexDirection: row }]}>
+              {presets.map((n) => {
+                const active = current.value === String(n);
+                return (
+                  <Pressable key={n} onPress={() => pickPreset(n)}
+                    style={[styles.chip, { backgroundColor: active ? theme.tint : theme.key }]}>
+                    <Text style={[styles.chipText, { color: active ? '#FFFFFF' : theme.keyText }]}>{n}%</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          ) : (
+            <Text style={[styles.suggestHint, { color: theme.secondary }]}>{current.adjustable ? t.pctOrAmt : t.priceHint}</Text>
+          )}
+        </View>
+        <View style={styles.keypad}>
+          <View style={styles.keyRow}>
+            {['7', '8', '9'].map((k) => <Key key={k} label={k} onPress={() => pressKey(k)} theme={theme} height={keyH} />)}
+            <Key icon="backspace-outline" variant="fn" onPress={() => pressKey('back')} onLongPress={() => pressKey('clear')} theme={theme} height={keyH} a11y={t.backspace} />
           </View>
-        )}
-      </View>
-
-      {/* Keypad (digits stay left-to-right in every language) */}
-      <View style={[styles.keypad, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-        <View style={styles.keyRow}>
-          {['7', '8', '9'].map((k) => <Key key={k} label={k} onPress={() => pressKey(k)} theme={theme} height={keyH} />)}
-          <Key icon="backspace-outline" variant="fn" onPress={() => pressKey('back')} onLongPress={() => pressKey('clear')} theme={theme} height={keyH} a11y={t.backspace} />
-        </View>
-        <View style={styles.keyRow}>
-          {['4', '5', '6'].map((k) => <Key key={k} label={k} onPress={() => pressKey(k)} theme={theme} height={keyH} />)}
-          <Key label="% ⇄ $" variant="fn" onPress={() => pressKey('type')} theme={theme} height={keyH} disabled={!current.adjustable} a11y={t.switchType} />
-        </View>
-        <View style={styles.keyRow}>
-          {['1', '2', '3'].map((k) => <Key key={k} label={k} onPress={() => pressKey(k)} theme={theme} height={keyH} />)}
-          <Key label="C" variant="fn" onPress={() => pressKey('clear')} theme={theme} height={keyH} a11y={t.clearField} />
-        </View>
-        <View style={styles.keyRow}>
-          <Key label="." onPress={() => pressKey('.')} theme={theme} height={keyH} />
-          <Key label="0" onPress={() => pressKey('0')} theme={theme} height={keyH} />
-          <Key label={t.next} icon={rtl ? 'arrow-back' : 'arrow-forward'} variant="primary" flex={2.08} onPress={() => pressKey('next')} theme={theme} height={keyH} />
+          <View style={styles.keyRow}>
+            {['4', '5', '6'].map((k) => <Key key={k} label={k} onPress={() => pressKey(k)} theme={theme} height={keyH} />)}
+            <Key label="% / $" variant="fn" onPress={() => pressKey('type')} theme={theme} height={keyH} disabled={!current.adjustable} a11y={t.switchType} />
+          </View>
+          <View style={styles.keyRow}>
+            {['1', '2', '3'].map((k) => <Key key={k} label={k} onPress={() => pressKey(k)} theme={theme} height={keyH} />)}
+            <Key label={t.clearField} variant="fn" onPress={() => pressKey('clear')} theme={theme} height={keyH} />
+          </View>
+          <View style={styles.keyRow}>
+            <Key label="." onPress={() => pressKey('.')} theme={theme} height={keyH} />
+            <Key label="0" onPress={() => pressKey('0')} theme={theme} height={keyH} />
+            <Key label={t.next} variant="primary" flex={2.06} onPress={() => pressKey('next')} theme={theme} height={keyH} />
+          </View>
         </View>
       </View>
     </View>
@@ -709,86 +733,85 @@ export default function App() {
   );
 }
 
+const LIST_PAD = 12;
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
 
-  // Header
-  header: { paddingHorizontal: 16, alignItems: 'center', gap: 8, marginBottom: 10 },
-  iconBtn: { width: 42, height: 42, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  iconBtnText: { fontSize: 14, fontWeight: '800' },
-  seg: { borderRadius: 12, padding: 3, gap: 3 },
-  segItem: { flex: 1, height: 36, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  segItemActive: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 1 },
-  segText: { fontSize: 14, fontWeight: '700' },
+  // Navigation
+  titleRow: { paddingHorizontal: 16, alignItems: 'center', gap: 10, minHeight: 44 },
+  largeTitle: { flex: 1, fontSize: 26, fontWeight: '700', letterSpacing: 0.2 },
+  largeTitleCompact: { fontSize: 22 },
+  navIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  navButton: { fontSize: 17, fontWeight: '400' },
+  segWrap: { paddingHorizontal: 16, marginTop: 8, marginBottom: 12 },
+  seg: { borderRadius: 9, padding: 2 },
+  segItem: { flex: 1, height: 30, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
+  segItemActive: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 2 },
+  segText: { fontSize: 13 },
 
-  // Result display
-  display: { marginHorizontal: 16, borderRadius: 22, paddingHorizontal: 18, paddingVertical: 14, gap: 4 },
-  displayTop: { justifyContent: 'space-between', alignItems: 'center' },
-  displayLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '700', letterSpacing: 1.4 },
-  displayActions: { gap: 6 },
-  displayBtn: { alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
-  displayBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  displayValueRow: { alignItems: 'flex-end', gap: 10 },
-  displayValue: { color: '#fff', fontSize: 42, fontWeight: '800', letterSpacing: -1.5, flexShrink: 1, fontVariant: ['tabular-nums'] },
-  displayStrike: { color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600', textDecorationLine: 'line-through', marginBottom: 8 },
-  displayPills: { flexWrap: 'wrap', gap: 6, alignItems: 'center', minHeight: 26 },
-  savePill: { alignItems: 'center', gap: 4, backgroundColor: '#A7F3D0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  savePillText: { color: '#065F46', fontSize: 13, fontWeight: '700' },
-  mutedPill: { backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  mutedPillText: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  displayHint: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '500' },
+  // Inset grouped
+  group: { borderRadius: 12, overflow: 'hidden' },
+  groupFooter: { fontSize: 13, lineHeight: 18, marginTop: 8, paddingHorizontal: 16 },
 
-  // Fields
-  fieldList: { flex: 1, marginTop: 10 },
-  fields: { paddingHorizontal: 16, paddingTop: FIELDS_PAD_TOP, paddingBottom: 8, gap: FIELDS_GAP },
-  field: { minHeight: 54, borderRadius: 16, borderWidth: 2, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center', gap: 10 },
-  fieldIcon: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  fieldLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
-  typePill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
-  typePillText: { fontSize: 13, fontWeight: '800' },
-  fieldValueWrap: { flexDirection: 'row', alignItems: 'center', maxWidth: '45%' },
-  fieldAffix: { fontSize: 18, fontWeight: '700', marginHorizontal: 2 },
-  fieldValue: { fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'], flexShrink: 1 },
-  caret: { width: 2, height: 24, borderRadius: 1, marginLeft: 2 },
-  fieldAction: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  addBtn: { height: 44, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  addBtnText: { fontSize: 14, fontWeight: '700' },
+  // Result card
+  resultCard: { marginHorizontal: 16, paddingHorizontal: 16, paddingVertical: 12 },
+  resultTop: { justifyContent: 'space-between', alignItems: 'center' },
+  resultLabel: { fontSize: 15, fontWeight: '400' },
+  resultValueRow: { alignItems: 'baseline', gap: 10 },
+  resultValue: { fontSize: 48, fontWeight: '700', letterSpacing: -0.5, flexShrink: 1, fontVariant: ['tabular-nums'] },
+  resultStrike: { fontSize: 17, textDecorationLine: 'line-through', fontVariant: ['tabular-nums'] },
+  resultBottom: { alignItems: 'center', gap: 8 },
+  resultSave: { fontSize: 15, fontWeight: '600' },
+  resultSub: { fontSize: 15 },
+  detailsBtn: { alignItems: 'center', gap: 2 },
 
-  // Presets strip
-  strip: { height: 44, justifyContent: 'center' },
-  stripInner: { paddingHorizontal: 16, gap: 6, alignItems: 'center' },
-  stripHint: { fontSize: 13, fontWeight: '500', marginHorizontal: 6 },
-  chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, borderWidth: 1 },
-  chipText: { fontSize: 13, fontWeight: '700' },
+  // Field list
+  list: { flex: 1, marginTop: 16 },
+  listContent: { paddingHorizontal: 16, paddingBottom: LIST_PAD },
+  listRow: { alignItems: 'center', gap: 12, minHeight: 48 },
+  rowIcon: { width: 29, height: 29, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
+  rowBody: { flex: 1, alignSelf: 'stretch', alignItems: 'center', gap: 10, minHeight: 48 },
+  rowLabel: { flex: 1, fontSize: 17 },
+  rowValueWrap: { flexDirection: 'row', alignItems: 'center', maxWidth: '50%' },
+  rowValue: { fontSize: 20, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  caret: { width: 2, height: 22, borderRadius: 1, marginHorizontal: 1 },
+  typeToggle: { flexDirection: 'row', borderRadius: 7, padding: 2 },
+  typeOpt: { width: 28, height: 24, borderRadius: 5, alignItems: 'center', justifyContent: 'center' },
+  typeOptText: { fontSize: 13, fontWeight: '600' },
 
-  // Keypad
-  keypad: { paddingHorizontal: 12, paddingTop: 4, gap: 8 },
-  keyRow: { flexDirection: 'row', gap: 8 },
-  key: { borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
-  keyDigit: { fontSize: 26, fontWeight: '600' },
-  keyFnText: { fontSize: 15, fontWeight: '700' },
-
-  // Breakdown
-  bdRow: { justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5, gap: 12 },
-  bdLabel: { fontSize: 14, fontWeight: '500', flexShrink: 1 },
-  bdLabelBold: { fontSize: 16, fontWeight: '800', flexShrink: 1 },
-  bdValue: { fontSize: 15, fontWeight: '700' },
-  bdValueBold: { fontSize: 18, fontWeight: '800' },
-  bdDivider: { height: 1, marginVertical: 6 },
-  note: { gap: 8, padding: 12, borderRadius: 12, marginTop: 8, alignItems: 'flex-start' },
-  noteText: { flex: 1, fontSize: 13, fontWeight: '500', lineHeight: 18 },
+  // Keyboard tray
+  tray: { borderTopWidth: HAIRLINE, borderTopColor: 'rgba(0,0,0,0.2)' },
+  suggestBar: { height: 44, justifyContent: 'center' },
+  suggestInner: { paddingHorizontal: 8, gap: 6, alignItems: 'center' },
+  suggestHint: { fontSize: 13, textAlign: 'center' },
+  chip: { paddingHorizontal: 14, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  chipText: { fontSize: 15, fontWeight: '500' },
+  keypad: { paddingHorizontal: 6, gap: 8 },
+  keyRow: { flexDirection: 'row', gap: 6 },
+  key: {
+    borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6,
+    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 1, shadowRadius: 0, elevation: 1,
+  },
+  keyDigit: { fontSize: 25, fontWeight: '400' },
+  keyFnText: { fontSize: 16, fontWeight: '500' },
 
   // Sheets
-  sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
-  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, gap: 12 },
-  sheetHandle: { width: 40, height: 5, borderRadius: 3, alignSelf: 'center', marginBottom: 4 },
-  sheetIcon: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
-  sheetTitle: { fontSize: 20, fontWeight: '800', textAlign: 'center' },
-  sheetSubtitle: { fontSize: 14, textAlign: 'center', marginBottom: 8, lineHeight: 20 },
-  sheetBtn: { height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
-  sheetBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  sheetGhostBtn: { height: 46, alignItems: 'center', justifyContent: 'center' },
-  sheetGhostText: { fontSize: 15, fontWeight: '600' },
-  scanningContainer: { alignItems: 'center', padding: 32, gap: 16 },
-  scanningText: { fontSize: 16, fontWeight: '600' },
+  dim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  actionWrap: { paddingHorizontal: 8, gap: 8 },
+  actionGroup: { borderRadius: 14, overflow: 'hidden' },
+  actionHeader: { paddingVertical: 14, paddingHorizontal: 16, alignItems: 'center', gap: 2, borderBottomWidth: HAIRLINE },
+  actionTitle: { fontSize: 13, fontWeight: '600' },
+  actionSubtitle: { fontSize: 13, textAlign: 'center' },
+  actionRow: { height: 57, alignItems: 'center', justifyContent: 'center' },
+  actionText: { fontSize: 20 },
+  scanningContainer: { alignItems: 'center', padding: 28, gap: 12 },
+  pageSheet: { borderTopLeftRadius: 12, borderTopRightRadius: 12, maxHeight: '85%' },
+  grabber: { width: 36, height: 5, borderRadius: 3, alignSelf: 'center', marginTop: 6 },
+  sheetNav: { height: 48, alignItems: 'center', paddingHorizontal: 16 },
+  sheetNavSide: { width: 70 },
+  sheetNavTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600' },
+  detailRow: { minHeight: 44, alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, gap: 12 },
+  detailLabel: { fontSize: 17, flexShrink: 1 },
+  detailValue: { fontSize: 17, fontVariant: ['tabular-nums'] },
 });
