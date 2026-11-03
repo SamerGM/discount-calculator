@@ -24,8 +24,10 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      # ubuntu-latest ships the Android SDK; setup-android@v3 now fails looking
+      # for the removed legacy 'tools' package. AGP installs what it needs.
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
       - name: Install Expo CLI
         run: npm install -g @expo/cli
       - name: Auto increment version code
