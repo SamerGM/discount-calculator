@@ -80,9 +80,13 @@ class ProxyVpnService : VpnService() {
   private var configFile: File? = null
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-    when (intent?.action) {
+    if (intent == null) {
+      worker.execute { shutdown(stopService = true) }
+      return START_NOT_STICKY
+    }
+    when (intent.action) {
       ACTION_START -> {
-        val req = intent
+        val req: Intent = intent
         worker.execute { start(req) }
       }
       ACTION_STOP -> worker.execute { shutdown(stopService = true) }

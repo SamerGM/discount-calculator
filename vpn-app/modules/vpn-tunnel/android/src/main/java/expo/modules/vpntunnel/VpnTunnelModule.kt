@@ -111,10 +111,12 @@ class VpnTunnelModule : Module() {
       } catch (e: Exception) {
         throw VpnTunnelException(e.message ?: e.toString(), e)
       }
+      Unit
     }
 
     AsyncFunction("disconnect") {
       stopAll()
+      Unit
     }
 
     Function("getStatus") {
