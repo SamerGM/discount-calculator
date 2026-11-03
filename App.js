@@ -4,6 +4,10 @@ import {
   useColorScheme, useWindowDimensions, Modal, Alert, ActivityIndicator, Animated,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
+import {
+  useFonts, Manrope_400Regular, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold,
+} from '@expo-google-fonts/manrope';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
@@ -11,20 +15,30 @@ import { Ionicons } from '@expo/vector-icons';
 
 const VISION_API_KEY = 'AIzaSyCdzCuPTWjo1j4HXjr6ZIgKtlZNNM_7YxE';
 
-// ─── Theme (iOS system colors) ────────────────────────────────────────────────
-const lightTheme = {
-  bg: '#F2F2F7', card: '#FFFFFF', fill: 'rgba(118,118,128,0.12)', separator: '#C6C6C8',
-  label: '#000000', secondary: '#8A8A8E', tertiary: '#C7C7CC',
-  tint: '#007AFF', tintSoft: 'rgba(0,122,255,0.08)', selected: '#E5E5EA',
-  green: '#34C759', greenText: '#248A3D', red: '#FF3B30', teal: '#30B0C7', orange: '#FF9500', indigo: '#5856D6',
-  tray: '#D1D3D9', key: '#FFFFFF', keyFn: '#ABB0BA', keyText: '#000000', keyShadow: 'rgba(0,0,0,0.3)',
-};
+// ─── Theme: frosted panels over an aurora gradient ────────────────────────────
+// The background is a static gradient, so translucent fills give the frosted look
+// without a live blur (which is slow on many Android phones).
 const darkTheme = {
-  bg: '#000000', card: '#1C1C1E', fill: 'rgba(118,118,128,0.24)', separator: '#38383A',
-  label: '#FFFFFF', secondary: '#8D8D93', tertiary: '#48484A',
-  tint: '#0A84FF', tintSoft: 'rgba(10,132,255,0.16)', selected: '#2C2C2E',
-  green: '#30D158', greenText: '#30D158', red: '#FF453A', teal: '#40C8E0', orange: '#FF9F0A', indigo: '#5E5CE6',
-  tray: '#161618', key: '#3A3A3C', keyFn: '#2C2C2E', keyText: '#FFFFFF', keyShadow: 'rgba(0,0,0,0.6)',
+  dark: true,
+  base: '#1E1744', blobA: '#FF7A59', blobB: '#7B5CFF', blobC: '#00C2A8',
+  text: '#FFFFFF', textSecondary: 'rgba(255,255,255,0.74)', textMuted: 'rgba(255,255,255,0.45)',
+  glass: 'rgba(255,255,255,0.13)', glassStrong: 'rgba(255,255,255,0.26)', glassBorder: 'rgba(255,255,255,0.26)',
+  separator: 'rgba(255,255,255,0.14)', solid: '#FFFFFF', onSolid: '#241B4D',
+  save: '#B9FFE9', danger: '#FF9C9C',
+  dotPrice: '#FFFFFF', dotDiscount: '#B9FFE9', dotCoupon: '#FFD36E', dotTax: '#FFA3BE',
+  tray: 'rgba(14,9,38,0.45)', key: 'rgba(255,255,255,0.12)', keyFn: 'rgba(255,255,255,0.22)', keyDown: 'rgba(255,255,255,0.32)',
+  sheet: '#2A2160', dim: 'rgba(8,5,24,0.55)',
+};
+const lightTheme = {
+  dark: false,
+  base: '#EEF0FF', blobA: '#FFB199', blobB: '#B9A8FF', blobC: '#8FF0DF',
+  text: '#1B1640', textSecondary: 'rgba(27,22,64,0.68)', textMuted: 'rgba(27,22,64,0.38)',
+  glass: 'rgba(255,255,255,0.5)', glassStrong: 'rgba(255,255,255,0.85)', glassBorder: 'rgba(255,255,255,0.85)',
+  separator: 'rgba(27,22,64,0.09)', solid: '#1B1640', onSolid: '#FFFFFF',
+  save: '#0B7F67', danger: '#D23C3C',
+  dotPrice: '#5B4FE0', dotDiscount: '#12A587', dotCoupon: '#E0A100', dotTax: '#E2557E',
+  tray: 'rgba(255,255,255,0.42)', key: 'rgba(255,255,255,0.72)', keyFn: 'rgba(255,255,255,0.38)', keyDown: 'rgba(255,255,255,0.95)',
+  sheet: '#F7F6FF', dim: 'rgba(27,22,64,0.35)',
 };
 
 // ─── Translations ─────────────────────────────────────────────────────────────
@@ -33,22 +47,22 @@ const translations = {
     appTitle: 'Shopping Calculator',
     simple: 'Simple', stacked: 'Stacked',
     price: 'Price', discount: 'Discount',
-    discountN: (n) => (n === 1 ? 'First Discount' : 'Second Discount'),
-    coupon: (n) => `Coupon ${n}`, addCoupon: 'Add Coupon', tax: 'Sales Tax',
+    discountN: (n) => (n === 1 ? 'First discount' : 'Second discount'),
+    coupon: (n) => `Coupon ${n}`, addCoupon: 'Add coupon', tax: 'Sales tax',
     pctOrAmt: 'Tap % or $ to switch',
-    finalPrice: 'Final Price', reset: 'Reset', details: 'Details', done: 'Done',
-    youSave: (a, p) => `You save ${a} (${p}%)`,
+    finalPrice: 'FINAL PRICE', reset: 'Reset', details: 'Details', done: 'Done',
+    youSave: (a, p) => `You save ${a} · ${p}%`,
     inclTax: (a) => `incl. ${a} tax`,
     enterPrice: 'Enter a price to begin',
     priceHint: 'Tap the camera to scan a price tag',
-    breakdown: 'Breakdown', original: 'Original Price', subtotal: 'Subtotal', total: 'Total',
-    effective: 'Effective Discount',
+    breakdown: 'Breakdown', original: 'Original price', subtotal: 'Subtotal', total: 'Total',
+    effective: 'Effective discount',
     stackedNote: (parts, eq) => `${parts} stacked = ${eq}% off. Discounts apply one after another, so they don't add up.`,
-    next: 'Next', removeCoupon: 'Remove coupon', clearField: 'Clear', backspace: 'Delete',
+    next: 'Next', removeCoupon: 'Remove coupon', clearField: 'C', backspace: 'Delete',
     switchType: 'Switch between percent and amount',
-    takePhoto: 'Take Photo', chooseGallery: 'Choose from Library', cancel: 'Cancel',
+    takePhoto: 'Take photo', chooseGallery: 'Choose from gallery', cancel: 'Cancel',
     scanning: 'Scanning…', scanFailed: 'Could not detect a price. Please enter it manually.',
-    scanTitle: 'Scan Price Tag',
+    scanTitle: 'Scan price tag',
     scanSubtitle: 'Fill in the price and discount automatically from a photo.',
     language: 'Language', appearance: 'Appearance',
   },
@@ -60,14 +74,14 @@ const translations = {
     coupon: (n) => `كوبون ${n}`, addCoupon: 'إضافة كوبون', tax: 'الضريبة',
     pctOrAmt: 'اضغط % أو $ للتبديل',
     finalPrice: 'السعر النهائي', reset: 'مسح الكل', details: 'التفاصيل', done: 'تم',
-    youSave: (a, p) => `وفّرت ‎${a}‏ (‎${p}%‏)`,
+    youSave: (a, p) => `وفّرت ‎${a} · ${p}%‏`,
     inclTax: (a) => `شامل ضريبة ‎${a}‏`,
     enterPrice: 'أدخل السعر للبدء',
     priceHint: 'اضغط على الكاميرا لمسح بطاقة السعر',
     breakdown: 'التفاصيل', original: 'السعر الأصلي', subtotal: 'المجموع قبل الضريبة', total: 'الإجمالي',
     effective: 'الخصم الفعلي',
     stackedNote: (parts, eq) => `${parts} متراكم = ${eq}% فعلياً. الخصومات تُطبَّق بالتسلسل ولا تُجمع.`,
-    next: 'التالي', removeCoupon: 'حذف الكوبون', clearField: 'مسح', backspace: 'حذف',
+    next: 'التالي', removeCoupon: 'حذف الكوبون', clearField: 'C', backspace: 'حذف',
     switchType: 'التبديل بين النسبة والمبلغ',
     takePhoto: 'التقاط صورة', chooseGallery: 'اختيار من المعرض', cancel: 'إلغاء',
     scanning: 'جارٍ المسح…', scanFailed: 'لم يتم اكتشاف السعر. يرجى الإدخال يدوياً.',
@@ -76,6 +90,13 @@ const translations = {
     language: 'اللغة', appearance: 'المظهر',
   },
 };
+
+// ─── Typography ───────────────────────────────────────────────────────────────
+// Manrope has no Arabic glyphs, so Arabic uses the system font with plain weights.
+const FONT_BY_WEIGHT = { 400: 'Manrope_400Regular', 600: 'Manrope_600SemiBold', 700: 'Manrope_700Bold', 800: 'Manrope_800ExtraBold' };
+const makeFont = (latin) => (weight) => (latin ? { fontFamily: FONT_BY_WEIGHT[weight] } : { fontWeight: String(weight) });
+// Digits and symbols are Latin in both languages, so numbers always use Manrope.
+const num = (weight) => ({ fontFamily: FONT_BY_WEIGHT[weight] });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const parseNum = (val) => { const n = parseFloat(val); return isNaN(n) ? 0 : n; };
@@ -88,8 +109,7 @@ const MAX_DIGITS = 8;
 const DISCOUNT_PICKS = [10, 20, 25, 30, 40, 50, 70];
 const TAX_PICKS = [5, 7, 8, 10, 15];
 const HAIRLINE = StyleSheet.hairlineWidth;
-const leadPad = (rtl) => (rtl ? { paddingRight: 16 } : { paddingLeft: 16 });
-const trailPad = (rtl) => (rtl ? { paddingLeft: 16 } : { paddingRight: 16 });
+const LIST_PAD = 12;
 
 // Light haptic feedback (no-op on web).
 const haptic = {
@@ -186,9 +206,46 @@ const scanImageWithVisionAPI = async (base64Image) => {
   return extractPriceAndDiscount(text);
 };
 
-// ─── Action sheet for scanning ────────────────────────────────────────────────
-const ScanSheet = ({ visible, onClose, onResult, theme, t }) => {
+// ─── Background ───────────────────────────────────────────────────────────────
+const Aurora = ({ theme }) => (
+  <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+    <Defs>
+      <RadialGradient id="ga" cx="0" cy="0" rx="85" ry="48" gradientUnits="userSpaceOnUse">
+        <Stop offset="0" stopColor={theme.blobA} stopOpacity="1" />
+        <Stop offset="1" stopColor={theme.blobA} stopOpacity="0" />
+      </RadialGradient>
+      <RadialGradient id="gb" cx="100" cy="34" rx="80" ry="42" gradientUnits="userSpaceOnUse">
+        <Stop offset="0" stopColor={theme.blobB} stopOpacity="1" />
+        <Stop offset="1" stopColor={theme.blobB} stopOpacity="0" />
+      </RadialGradient>
+      <RadialGradient id="gc" cx="25" cy="100" rx="85" ry="48" gradientUnits="userSpaceOnUse">
+        <Stop offset="0" stopColor={theme.blobC} stopOpacity="1" />
+        <Stop offset="1" stopColor={theme.blobC} stopOpacity="0" />
+      </RadialGradient>
+    </Defs>
+    <Rect x="0" y="0" width="100" height="100" fill={theme.base} />
+    <Rect x="0" y="0" width="100" height="100" fill="url(#ga)" />
+    <Rect x="0" y="0" width="100" height="100" fill="url(#gb)" />
+    <Rect x="0" y="0" width="100" height="100" fill="url(#gc)" />
+  </Svg>
+);
+
+// ─── Sheets ───────────────────────────────────────────────────────────────────
+const SheetFrame = ({ visible, onClose, theme, dismissable = true, children }) => {
   const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={dismissable ? onClose : undefined}>
+      <Pressable style={[styles.dim, { backgroundColor: theme.dim }]} onPress={dismissable ? onClose : undefined}>
+        <Pressable onPress={() => {}} style={[styles.sheet, { backgroundColor: theme.sheet, borderColor: theme.glassBorder, paddingBottom: insets.bottom + 18 }]}>
+          <View style={[styles.grabber, { backgroundColor: theme.textMuted }]} />
+          {children}
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+};
+
+const ScanSheet = ({ visible, onClose, onResult, theme, t, font }) => {
   const [scanning, setScanning] = useState(false);
   const handleScan = async (useCamera) => {
     try {
@@ -199,7 +256,7 @@ const ScanSheet = ({ visible, onClose, onResult, theme, t }) => {
         result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.5, allowsEditing: false, exif: false });
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') { Alert.alert('Permission needed', 'Photo library permission is required.'); return; }
+        if (status !== 'granted') { Alert.alert('Permission needed', 'Gallery permission is required.'); return; }
         result = await ImagePicker.launchImageLibraryAsync({ base64: true, quality: 0.5, allowsEditing: false, exif: false });
       }
       if (!result.canceled && result.assets?.[0]?.base64) {
@@ -214,93 +271,63 @@ const ScanSheet = ({ visible, onClose, onResult, theme, t }) => {
       Alert.alert('Error', e.message || 'Something went wrong. Please try again.');
     }
   };
-  const ActionRow = ({ label, onPress, bold, last }) => (
+  const Btn = ({ icon, label, onPress, primary }) => (
     <Pressable onPress={onPress}
-      style={({ pressed }) => [styles.actionRow, { backgroundColor: pressed ? theme.selected : 'transparent' },
-        !last && { borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
-      <Text style={[styles.actionText, { color: theme.tint, fontWeight: bold ? '600' : '400' }]}>{label}</Text>
+      style={({ pressed }) => [styles.sheetBtn, { backgroundColor: primary ? theme.solid : theme.glassStrong, opacity: pressed ? 0.8 : 1 }]}>
+      {icon && <Ionicons name={icon} size={20} color={primary ? theme.onSolid : theme.text} />}
+      <Text style={[styles.sheetBtnText, font(700), { color: primary ? theme.onSolid : theme.text }]}>{label}</Text>
     </Pressable>
   );
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={scanning ? undefined : onClose}>
-      <Pressable style={[styles.dim, { paddingBottom: insets.bottom + 8 }]} onPress={scanning ? undefined : onClose}>
-        <Pressable onPress={() => {}} style={styles.actionWrap}>
-          <View style={[styles.actionGroup, { backgroundColor: theme.card }]}>
-            {scanning ? (
-              <View style={styles.scanningContainer}>
-                <ActivityIndicator size="large" color={theme.secondary} />
-                <Text style={[styles.actionSubtitle, { color: theme.secondary }]}>{t.scanning}</Text>
-              </View>
-            ) : (
-              <>
-                <View style={[styles.actionHeader, { borderBottomColor: theme.separator }]}>
-                  <Text style={[styles.actionTitle, { color: theme.secondary }]}>{t.scanTitle}</Text>
-                  <Text style={[styles.actionSubtitle, { color: theme.secondary }]}>{t.scanSubtitle}</Text>
-                </View>
-                <ActionRow label={t.takePhoto} onPress={() => handleScan(true)} />
-                <ActionRow label={t.chooseGallery} onPress={() => handleScan(false)} last />
-              </>
-            )}
-          </View>
-          {!scanning && (
-            <View style={[styles.actionGroup, { backgroundColor: theme.card }]}>
-              <ActionRow label={t.cancel} onPress={onClose} bold last />
-            </View>
-          )}
-        </Pressable>
-      </Pressable>
-    </Modal>
+    <SheetFrame visible={visible} onClose={onClose} theme={theme} dismissable={!scanning}>
+      {scanning ? (
+        <View style={styles.scanningContainer}>
+          <ActivityIndicator size="large" color={theme.text} />
+          <Text style={[styles.sheetSub, font(600), { color: theme.textSecondary }]}>{t.scanning}</Text>
+        </View>
+      ) : (
+        <>
+          <Text style={[styles.sheetTitle, font(800), { color: theme.text }]}>{t.scanTitle}</Text>
+          <Text style={[styles.sheetSub, font(400), { color: theme.textSecondary }]}>{t.scanSubtitle}</Text>
+          <Btn icon="camera-outline" label={t.takePhoto} onPress={() => handleScan(true)} primary />
+          <Btn icon="image-outline" label={t.chooseGallery} onPress={() => handleScan(false)} />
+          <Pressable onPress={onClose} style={styles.sheetGhost}>
+            <Text style={[styles.sheetBtnText, font(600), { color: theme.textSecondary }]}>{t.cancel}</Text>
+          </Pressable>
+        </>
+      )}
+    </SheetFrame>
   );
 };
 
-// ─── Breakdown page sheet ─────────────────────────────────────────────────────
-const DetailsSheet = ({ visible, onClose, theme, t, rtl, result, stepLabel, stackNote }) => {
-  const insets = useSafeAreaInsets();
-  const rows = [{ label: t.original, value: money(result.original) }];
-  result.steps.filter((s) => s.kind !== 'tax').forEach((s) => rows.push({ label: stepLabel(s), value: `−${money(-s.amount)}`, color: theme.greenText }));
-  const taxRows = [];
-  if (result.tax > 0) {
-    taxRows.push({ label: t.subtotal, value: money(result.subtotal) });
-    result.steps.filter((s) => s.kind === 'tax').forEach((s) => taxRows.push({ label: stepLabel(s), value: `+${money(s.amount)}` }));
-  }
-  const totals = [{ label: t.total, value: money(result.final), bold: true }];
-  if (result.savings > 0) totals.push({ label: t.effective, value: `${result.savingsPct.toFixed(1)}%`, color: theme.greenText });
-
-  const Group = ({ items }) => (
-    <View style={[styles.group, { backgroundColor: theme.card }]}>
-      {items.map((r, i) => (
-        <View key={i} style={[styles.detailRow, { flexDirection: rtl ? 'row-reverse' : 'row' },
-          i < items.length - 1 && { borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
-          <Text style={[styles.detailLabel, { color: theme.label, fontWeight: r.bold ? '600' : '400', textAlign: rtl ? 'right' : 'left' }]}>{r.label}</Text>
-          <Text style={[styles.detailValue, { color: r.color || (r.bold ? theme.label : theme.secondary), fontWeight: r.bold ? '600' : '400' }]}>{r.value}</Text>
-        </View>
-      ))}
+const DetailsSheet = ({ visible, onClose, theme, t, rtl, result, stepLabel, stackNote, font }) => {
+  const row = rtl ? 'row-reverse' : 'row';
+  const Line = ({ label, value, color, bold, last }) => (
+    <View style={[styles.detailRow, { flexDirection: row }, !last && { borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
+      <Text style={[styles.detailLabel, font(bold ? 800 : 400), { color: bold ? theme.text : theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{label}</Text>
+      <Text style={[styles.detailValue, num(bold ? 800 : 700), { color: color || theme.text }]}>{value}</Text>
     </View>
   );
-
+  const cuts = result.steps.filter((s) => s.kind !== 'tax');
+  const taxes = result.steps.filter((s) => s.kind === 'tax');
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.dim}>
-        <View style={[styles.pageSheet, { backgroundColor: theme.bg, paddingBottom: insets.bottom + 16 }]}>
-          <View style={[styles.grabber, { backgroundColor: theme.tertiary }]} />
-          <View style={[styles.sheetNav, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-            <View style={styles.sheetNavSide} />
-            <Text style={[styles.sheetNavTitle, { color: theme.label }]}>{t.breakdown}</Text>
-            <Pressable onPress={onClose} hitSlop={10} style={[styles.sheetNavSide, { alignItems: rtl ? 'flex-start' : 'flex-end' }]}>
-              <Text style={[styles.navButton, { color: theme.tint, fontWeight: '600' }]}>{t.done}</Text>
-            </Pressable>
-          </View>
-          <ScrollView contentContainerStyle={{ gap: 20, paddingHorizontal: 16, paddingTop: 8 }}>
-            <Group items={rows} />
-            {taxRows.length > 0 && <Group items={taxRows} />}
-            <View>
-              <Group items={totals} />
-              {stackNote && <Text style={[styles.groupFooter, { color: theme.secondary, textAlign: rtl ? 'right' : 'left' }]}>{stackNote}</Text>}
-            </View>
-          </ScrollView>
-        </View>
+    <SheetFrame visible={visible} onClose={onClose} theme={theme}>
+      <View style={[styles.sheetNav, { flexDirection: row }]}>
+        <Text style={[styles.sheetTitle, font(800), { color: theme.text, flex: 1, textAlign: rtl ? 'right' : 'left' }]}>{t.breakdown}</Text>
+        <Pressable onPress={onClose} hitSlop={10} style={[styles.pill, { backgroundColor: theme.solid }]}>
+          <Text style={[styles.pillText, font(700), { color: theme.onSolid }]}>{t.done}</Text>
+        </Pressable>
       </View>
-    </Modal>
+      <View style={[styles.glassCard, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}>
+        <Line label={t.original} value={money(result.original)} />
+        {cuts.map((s, i) => <Line key={i} label={stepLabel(s)} value={`−${money(-s.amount)}`} color={theme.save} />)}
+        {result.tax > 0 && <Line label={t.subtotal} value={money(result.subtotal)} />}
+        {taxes.map((s) => <Line key="tax" label={stepLabel(s)} value={`+${money(s.amount)}`} />)}
+        <Line label={t.total} value={money(result.final)} bold last={result.savings <= 0} />
+        {result.savings > 0 && <Line label={t.effective} value={`${result.savingsPct.toFixed(1)}%`} color={theme.save} last />}
+      </View>
+      {stackNote && <Text style={[styles.note, font(400), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{stackNote}</Text>}
+    </SheetFrame>
   );
 };
 
@@ -319,87 +346,84 @@ const Caret = ({ color }) => {
   return <Animated.View style={[styles.caret, { backgroundColor: color, opacity }]} />;
 };
 
-const SegmentedControl = ({ options, value, onChange, theme, rtl }) => (
-  <View style={[styles.seg, { backgroundColor: theme.fill, flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+const GlassIcon = ({ name, onPress, theme, label }) => (
+  <Pressable onPress={onPress} hitSlop={8} accessibilityLabel={label}
+    style={({ pressed }) => [styles.glassIcon, { backgroundColor: pressed ? theme.glassStrong : theme.glass, borderColor: theme.glassBorder }]}>
+    <Ionicons name={name} size={18} color={theme.text} />
+  </Pressable>
+);
+
+const Segmented = ({ options, value, onChange, theme, rtl, font }) => (
+  <View style={[styles.seg, { backgroundColor: theme.glass, borderColor: theme.glassBorder, flexDirection: rtl ? 'row-reverse' : 'row' }]}>
     {options.map((o) => {
       const active = o.value === value;
       return (
         <Pressable key={o.value} onPress={() => { haptic.select(); onChange(o.value); }}
           accessibilityRole="button" accessibilityState={{ selected: active }}
-          style={[styles.segItem, active && [styles.segItemActive, { backgroundColor: theme === darkTheme ? '#636366' : '#FFFFFF' }]]}>
-          <Text style={[styles.segText, { color: theme.label, fontWeight: active ? '600' : '500' }]}>{o.label}</Text>
+          style={[styles.segItem, active && { backgroundColor: theme.solid }]}>
+          <Text style={[styles.segText, font(active ? 800 : 600), { color: active ? theme.onSolid : theme.textSecondary }]}>{o.label}</Text>
         </Pressable>
       );
     })}
   </View>
 );
 
-const NavIcon = ({ name, onPress, theme, label }) => (
-  <Pressable onPress={onPress} hitSlop={8} accessibilityLabel={label}
-    style={({ pressed }) => [styles.navIcon, { backgroundColor: theme.fill, opacity: pressed ? 0.5 : 1 }]}>
-    <Ionicons name={name} size={19} color={theme.tint} />
-  </Pressable>
-);
-
-// One row of the inset grouped list.
-const FieldRow = ({ field, active, last, onPress, onToggleType, onRemove, onScan, theme, rtl, t }) => {
+const FieldRow = ({ field, active, last, onPress, onToggleType, onRemove, onScan, theme, rtl, t, font }) => {
   const row = rtl ? 'row-reverse' : 'row';
   const empty = field.value === '';
-  const valueColor = active ? theme.tint : empty ? theme.tertiary : theme.label;
+  const valueColor = empty ? theme.textMuted : theme.text;
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: active }}
-      style={({ pressed }) => [styles.listRow, leadPad(rtl), { flexDirection: row, backgroundColor: active ? theme.tintSoft : pressed ? theme.selected : 'transparent' }]}>
-      {onRemove && (
-        <Pressable onPress={onRemove} hitSlop={8} accessibilityLabel={t.removeCoupon}>
-          <Ionicons name="remove-circle" size={22} color={theme.red} />
+      style={({ pressed }) => [styles.fieldRow, { flexDirection: row, backgroundColor: active ? theme.glassStrong : pressed ? theme.glass : 'transparent' },
+        !last && { borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
+      <View style={[styles.dot, { backgroundColor: field.dot }]} />
+      <Text numberOfLines={1} style={[styles.fieldLabel, font(active ? 700 : 600), { color: active ? theme.text : theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{field.label}</Text>
+      {field.adjustable && (
+        <Pressable onPress={onToggleType} hitSlop={6} accessibilityLabel={t.switchType}
+          style={[styles.typeToggle, { backgroundColor: theme.glass }]}>
+          {['pct', 'amt'].map((ty) => (
+            <View key={ty} style={[styles.typeOpt, field.type === ty && { backgroundColor: theme.solid }]}>
+              <Text style={[styles.typeOptText, num(800), { color: field.type === ty ? theme.onSolid : theme.textSecondary }]}>{ty === 'pct' ? '%' : '$'}</Text>
+            </View>
+          ))}
         </Pressable>
       )}
-      <View style={[styles.rowIcon, { backgroundColor: field.color }]}>
-        <Ionicons name={field.icon} size={16} color="#FFFFFF" />
+      {/* Numbers always read left-to-right, even in Arabic. */}
+      <View style={styles.valueWrap}>
+        {field.type === 'amt' && <Text style={[styles.fieldValue, num(800), { color: valueColor }]}>$</Text>}
+        <Text numberOfLines={1} style={[styles.fieldValue, num(800), { color: valueColor }]}>{empty ? '0' : field.value}</Text>
+        {active && <Caret color={theme.text} />}
+        {field.type === 'pct' && <Text style={[styles.fieldValue, num(800), { color: valueColor }]}>%</Text>}
       </View>
-      <View style={[styles.rowBody, trailPad(rtl), { flexDirection: row }, !last && { borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
-        <Text numberOfLines={1} style={[styles.rowLabel, { color: theme.label, textAlign: rtl ? 'right' : 'left' }]}>{field.label}</Text>
-        {field.adjustable && (
-          <Pressable onPress={onToggleType} hitSlop={6} accessibilityLabel={t.switchType}
-            style={[styles.typeToggle, { backgroundColor: theme.fill }]}>
-            {['pct', 'amt'].map((ty) => (
-              <View key={ty} style={[styles.typeOpt, field.type === ty && { backgroundColor: theme === darkTheme ? '#636366' : '#FFFFFF' }]}>
-                <Text style={[styles.typeOptText, { color: field.type === ty ? theme.label : theme.secondary }]}>{ty === 'pct' ? '%' : '$'}</Text>
-              </View>
-            ))}
-          </Pressable>
-        )}
-        {/* Numbers always read left-to-right, even in Arabic. */}
-        <View style={styles.rowValueWrap}>
-          {field.type === 'amt' && <Text style={[styles.rowValue, { color: valueColor }]}>$</Text>}
-          <Text numberOfLines={1} style={[styles.rowValue, { color: valueColor }]}>{empty ? '0' : field.value}</Text>
-          {active && <Caret color={theme.tint} />}
-          {field.type === 'pct' && <Text style={[styles.rowValue, { color: valueColor }]}>%</Text>}
-        </View>
-        {onScan && (
-          <Pressable onPress={onScan} hitSlop={8} accessibilityLabel={t.scanTitle}>
-            <Ionicons name="camera" size={22} color={theme.tint} />
-          </Pressable>
-        )}
-      </View>
+      {onScan && (
+        <Pressable onPress={onScan} hitSlop={8} accessibilityLabel={t.scanTitle} style={[styles.rowAction, { backgroundColor: theme.glass }]}>
+          <Ionicons name="camera-outline" size={17} color={theme.text} />
+        </Pressable>
+      )}
+      {onRemove && (
+        <Pressable onPress={onRemove} hitSlop={8} accessibilityLabel={t.removeCoupon} style={[styles.rowAction, { backgroundColor: theme.glass }]}>
+          <Ionicons name="close" size={17} color={theme.danger} />
+        </Pressable>
+      )}
     </Pressable>
   );
 };
 
-const Key = ({ label, icon, onPress, onLongPress, theme, height, variant = 'digit', disabled, flex = 1, a11y }) => {
-  const isPrimary = variant === 'primary';
+const Key = ({ label, icon, onPress, onLongPress, theme, height, variant = 'digit', disabled, flex = 1, a11y, font }) => {
+  const primary = variant === 'primary';
+  const fg = primary ? theme.onSolid : theme.text;
   return (
     <Pressable
       onPress={() => { haptic.tap(); onPress(); }} onLongPress={onLongPress} disabled={disabled}
       accessibilityRole="button" accessibilityLabel={a11y || label}
-      style={({ pressed }) => {
-        const base = isPrimary ? theme.tint : variant === 'fn' ? theme.keyFn : theme.key;
-        const down = isPrimary ? theme.tint : variant === 'fn' ? theme.key : theme.keyFn;
-        return [styles.key, { flex, height, backgroundColor: pressed ? down : base, shadowColor: theme.keyShadow, opacity: disabled ? 0.4 : pressed && isPrimary ? 0.8 : 1 }];
-      }}
+      style={({ pressed }) => [styles.key, {
+        flex, height,
+        backgroundColor: primary ? theme.solid : pressed ? theme.keyDown : variant === 'fn' ? theme.keyFn : theme.key,
+        opacity: disabled ? 0.35 : primary && pressed ? 0.85 : 1,
+      }]}
     >
-      {icon ? <Ionicons name={icon} size={22} color={isPrimary ? '#FFFFFF' : theme.keyText} /> : null}
-      {label ? <Text style={[variant === 'digit' ? styles.keyDigit : styles.keyFnText, { color: isPrimary ? '#FFFFFF' : theme.keyText }]}>{label}</Text> : null}
+      {icon ? <Ionicons name={icon} size={21} color={fg} /> : null}
+      {label ? <Text style={[variant === 'digit' ? [styles.keyDigit, num(600)] : [styles.keyFnText, font(800)], { color: fg }]}>{label}</Text> : null}
     </Pressable>
   );
 };
@@ -416,6 +440,7 @@ const CalculatorScreen = () => {
   const systemScheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
+  const [fontsLoaded] = useFonts({ Manrope_400Regular, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold });
   const [isDark, setIsDark] = useState(null);
   const [lang, setLang] = useState('en');
   const [mode, setMode] = useState('simple');
@@ -437,10 +462,10 @@ const CalculatorScreen = () => {
         const [savedTheme, savedLang, savedMode] = await Promise.all(
           ['theme', 'lang', 'mode'].map((k) => AsyncStorage.getItem(k))
         );
-        setIsDark(savedTheme !== null ? savedTheme === 'dark' : systemScheme === 'dark');
+        setIsDark(savedTheme !== null ? savedTheme === 'dark' : systemScheme !== 'light');
         if (savedLang && translations[savedLang]) setLang(savedLang);
         if (savedMode === 'simple' || savedMode === 'stacked') setMode(savedMode);
-      } catch (e) { setIsDark(systemScheme === 'dark'); }
+      } catch (e) { setIsDark(systemScheme !== 'light'); }
       setLoaded(true);
     })();
   }, []);
@@ -450,30 +475,25 @@ const CalculatorScreen = () => {
   const toggleLang = () => { haptic.select(); setLang((l) => { const n = l === 'en' ? 'ar' : 'en'; persist('lang', n); return n; }); };
   const changeMode = (m) => { setMode(m); persist('mode', m); };
 
-  const theme = isDark ? darkTheme : lightTheme;
+  const theme = isDark === false ? lightTheme : darkTheme;
   const t = translations[lang];
   const rtl = lang === 'ar';
+  const font = makeFont(!rtl);
   const stacked = mode === 'stacked';
   const compact = height < 720;
 
   // Ordered list of editable fields; "Next" walks through it.
   const fields = useMemo(() => {
-    const list = [{
-      key: 'price', kind: 'price', label: t.price, icon: 'pricetag',
-      color: theme.tint, value: form.price, type: 'amt', adjustable: false,
-    }];
+    const list = [{ key: 'price', kind: 'price', label: t.price, dot: theme.dotPrice, value: form.price, type: 'amt', adjustable: false }];
     form.discounts.slice(0, stacked ? 2 : 1).forEach((d, i) => list.push({
-      key: `d${i}`, kind: 'discount', label: stacked ? t.discountN(i + 1) : t.discount, icon: 'pricetags',
-      color: theme.green, value: d.value, type: d.type, adjustable: true,
+      key: `d${i}`, kind: 'discount', label: stacked ? t.discountN(i + 1) : t.discount,
+      dot: theme.dotDiscount, value: d.value, type: d.type, adjustable: true,
     }));
     form.coupons.forEach((c, i) => list.push({
-      key: `c${c.id}`, kind: 'coupon', label: t.coupon(i + 1), icon: 'ticket', id: c.id,
-      color: theme.teal, value: c.value, type: c.type, adjustable: true,
+      key: `c${c.id}`, kind: 'coupon', label: t.coupon(i + 1), id: c.id,
+      dot: theme.dotCoupon, value: c.value, type: c.type, adjustable: true,
     }));
-    list.push({
-      key: 'tax', kind: 'tax', label: t.tax, icon: 'receipt',
-      color: theme.orange, value: form.tax, type: 'pct', adjustable: false,
-    });
+    list.push({ key: 'tax', kind: 'tax', label: t.tax, dot: theme.dotTax, value: form.tax, type: 'pct', adjustable: false });
     return list;
   }, [form, stacked, t, theme]);
 
@@ -577,147 +597,147 @@ const CalculatorScreen = () => {
     : null;
 
   // Size keys to the screen so the keypad fits small and large phones.
-  const keyH = Math.max(42, Math.min(52, Math.round(height * 0.058)));
+  const keyH = Math.max(42, Math.min(54, Math.round(height * 0.06)));
   const row = rtl ? 'row-reverse' : 'row';
   const align = rtl ? 'right' : 'left';
 
-  if (!loaded) return <View style={{ flex: 1, backgroundColor: theme.bg }} />;
+  if (!loaded || !fontsLoaded) return <View style={{ flex: 1, backgroundColor: theme.base }} />;
 
   const presets = current.kind === 'tax' ? TAX_PICKS
     : current.adjustable && current.type === 'pct' ? DISCOUNT_PICKS : null;
-
   const lastFieldKey = fields[fields.length - 1].key;
+  const glassCard = { backgroundColor: theme.glass, borderColor: theme.glassBorder };
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.bg, paddingTop: insets.top + 6 }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.bg} />
-      <ScanSheet visible={scanVisible} onClose={() => setScanVisible(false)} theme={theme} t={t}
+    <View style={[styles.screen, { backgroundColor: theme.base }]}>
+      <Aurora theme={theme} />
+      <StatusBar barStyle={theme.dark ? 'light-content' : 'dark-content'} translucent backgroundColor="transparent" />
+      <ScanSheet visible={scanVisible} onClose={() => setScanVisible(false)} theme={theme} t={t} font={font}
         onResult={({ price, discount }) => {
           if (price) updateField('price', () => ({ value: price }));
           if (discount) updateField('d0', () => ({ value: discount, type: 'pct' }));
         }} />
       <DetailsSheet visible={detailsVisible} onClose={() => setDetailsVisible(false)} theme={theme} t={t} rtl={rtl}
-        result={result} stepLabel={stepLabel} stackNote={stackNote} />
+        result={result} stepLabel={stepLabel} stackNote={stackNote} font={font} />
 
-      {/* Large title with trailing buttons */}
-      <View style={[styles.titleRow, { flexDirection: row }]}>
-        <Text style={[styles.largeTitle, compact && styles.largeTitleCompact, { color: theme.label, textAlign: align }]}
-          numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{t.appTitle}</Text>
-        <NavIcon name="globe-outline" onPress={toggleLang} theme={theme} label={t.language} />
-        <NavIcon name={isDark ? 'sunny-outline' : 'moon-outline'} onPress={toggleTheme} theme={theme} label={t.appearance} />
-      </View>
-
-      <View style={styles.segWrap}>
-        <SegmentedControl
-          options={[{ value: 'simple', label: t.simple }, { value: 'stacked', label: t.stacked }]}
-          value={mode} onChange={changeMode} theme={theme} rtl={rtl}
-        />
-      </View>
-
-      {/* Result */}
-      <View style={[styles.group, styles.resultCard, { backgroundColor: theme.card }, compact && { paddingVertical: 10 }]}>
-        <View style={[styles.resultTop, { flexDirection: row }]}>
-          <Text style={[styles.resultLabel, { color: theme.secondary }]}>{t.finalPrice}</Text>
-          <Pressable onPress={reset} disabled={!canReset} hitSlop={10}>
-            <Text style={[styles.navButton, { color: canReset ? theme.tint : theme.tertiary }]}>{t.reset}</Text>
-          </Pressable>
+      <View style={{ paddingTop: insets.top + 8, flex: 1 }}>
+        {/* Header */}
+        <View style={[styles.header, { flexDirection: row }]}>
+          <Text style={[styles.title, compact && { fontSize: 20 }, font(800), { color: theme.text, textAlign: align }]}
+            numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t.appTitle}</Text>
+          <GlassIcon name="globe-outline" onPress={toggleLang} theme={theme} label={t.language} />
+          <GlassIcon name={theme.dark ? 'sunny-outline' : 'moon-outline'} onPress={toggleTheme} theme={theme} label={t.appearance} />
         </View>
-        <View style={[styles.resultValueRow, { flexDirection: row }]}>
-          <Text style={[styles.resultValue, compact && { fontSize: 38 }, { color: theme.label }]} numberOfLines={1} adjustsFontSizeToFit>
-            {money(result.final)}
-          </Text>
-          {result.savings > 0 && <Text style={[styles.resultStrike, { color: theme.secondary }]}>{money(result.original)}</Text>}
+
+        <View style={styles.segWrap}>
+          <Segmented options={[{ value: 'simple', label: t.simple }, { value: 'stacked', label: t.stacked }]}
+            value={mode} onChange={changeMode} theme={theme} rtl={rtl} font={font} />
         </View>
-        <View style={[styles.resultBottom, { flexDirection: row }]}>
-          <View style={{ flex: 1 }}>
+
+        {/* Result */}
+        <View style={[styles.glassCard, styles.resultCard, glassCard, compact && { paddingVertical: 10 }]}>
+          <View style={[styles.resultTop, { flexDirection: row }]}>
+            <Text style={[styles.resultLabel, font(700), { color: theme.textSecondary }]}>{t.finalPrice}</Text>
+            <View style={[styles.resultActions, { flexDirection: row }]}>
+              <Pressable onPress={() => setDetailsVisible(true)} disabled={result.original <= 0} hitSlop={6}
+                style={({ pressed }) => [styles.pill, { backgroundColor: pressed ? theme.glassStrong : theme.glass, opacity: result.original > 0 ? 1 : 0.45 }]}>
+                <Text style={[styles.pillText, font(700), { color: theme.text }]}>{t.details}</Text>
+              </Pressable>
+              <Pressable onPress={reset} disabled={!canReset} hitSlop={6}
+                style={({ pressed }) => [styles.pill, { backgroundColor: pressed ? theme.glassStrong : theme.glass, opacity: canReset ? 1 : 0.45 }]}>
+                <Ionicons name="refresh" size={13} color={theme.text} />
+                <Text style={[styles.pillText, font(700), { color: theme.text }]}>{t.reset}</Text>
+              </Pressable>
+            </View>
+          </View>
+          <View style={[styles.resultValueRow, { flexDirection: row }]}>
+            <Text style={[styles.resultValue, num(800), compact && { fontSize: 38 }, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit>
+              {money(result.final)}
+            </Text>
+            {result.savings > 0 && <Text style={[styles.resultStrike, num(600), { color: theme.textMuted }]}>{money(result.original)}</Text>}
+          </View>
+          <View style={[styles.resultBottom, { flexDirection: row }]}>
             {result.savings > 0 ? (
-              <Text style={[styles.resultSave, { color: theme.greenText, textAlign: align }]} numberOfLines={1}>
+              <Text style={[styles.resultSave, font(700), { color: theme.save, textAlign: align }]} numberOfLines={1}>
                 {t.youSave(money(result.savings), result.savingsPct.toFixed(1))}
               </Text>
             ) : (
-              <Text style={[styles.resultSub, { color: theme.secondary, textAlign: align }]}>{t.enterPrice}</Text>
+              <Text style={[styles.resultSave, font(600), { color: theme.textSecondary, textAlign: align }]}>{t.enterPrice}</Text>
             )}
             {result.tax > 0 && !compact && (
-              <Text style={[styles.resultSub, { color: theme.secondary, textAlign: align }]}>{t.inclTax(money(result.tax))}</Text>
+              <Text style={[styles.resultTax, font(600), { color: theme.textSecondary }]}>{t.inclTax(money(result.tax))}</Text>
             )}
           </View>
-          <Pressable onPress={() => setDetailsVisible(true)} disabled={result.original <= 0} hitSlop={10}
-            style={[styles.detailsBtn, { flexDirection: row }]}>
-            <Text style={[styles.navButton, { color: result.original > 0 ? theme.tint : theme.tertiary }]}>{t.details}</Text>
-            <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={result.original > 0 ? theme.tint : theme.tertiary} />
-          </Pressable>
         </View>
-      </View>
 
-      {/* Inset grouped list of fields */}
-      <ScrollView
-        ref={listRef} style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}
-        onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }} scrollEventThrottle={32}
-        onLayout={(e) => { viewH.current = e.nativeEvent.layout.height; }}
-      >
-        <View style={[styles.group, { backgroundColor: theme.card }]}>
-          {fields.map((f) => (
-            <React.Fragment key={f.key}>
-              {f.kind === 'tax' && showAddCoupon && (
-                <Pressable onPress={addCoupon} onLayout={(e) => { heights.current.add = e.nativeEvent.layout.height; }}
-                  style={({ pressed }) => [styles.listRow, leadPad(rtl), { flexDirection: row, backgroundColor: pressed ? theme.selected : 'transparent' }]}>
-                  <Ionicons name="add-circle" size={22} color={theme.green} />
-                  <View style={[styles.rowBody, trailPad(rtl), { flexDirection: row, borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
-                    <Text style={[styles.rowLabel, { color: theme.tint, textAlign: align }]}>{t.addCoupon}</Text>
-                  </View>
-                </Pressable>
-              )}
-              <View onLayout={(e) => { heights.current[f.key] = e.nativeEvent.layout.height; }}>
-                <FieldRow
-                  field={f} active={f.key === current.key} last={f.key === lastFieldKey} theme={theme} rtl={rtl} t={t}
-                  onPress={() => selectField(f.key)}
-                  onToggleType={() => { haptic.select(); setSelected(f.key); toggleType(f.key); }}
-                  onScan={f.kind === 'price' ? () => setScanVisible(true) : null}
-                  onRemove={f.kind === 'coupon' ? () => removeCoupon(f.id) : null}
-                />
-              </View>
-            </React.Fragment>
-          ))}
-        </View>
-      </ScrollView>
-
-      {/* Keyboard tray: suggestion bar + keypad */}
-      <View style={[styles.tray, { backgroundColor: theme.tray, paddingBottom: Math.max(insets.bottom, 8) }]}>
-        <View style={styles.suggestBar}>
-          {presets ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled"
-              contentContainerStyle={[styles.suggestInner, { flexDirection: row }]}>
-              {presets.map((n) => {
-                const active = current.value === String(n);
-                return (
-                  <Pressable key={n} onPress={() => pickPreset(n)}
-                    style={[styles.chip, { backgroundColor: active ? theme.tint : theme.key }]}>
-                    <Text style={[styles.chipText, { color: active ? '#FFFFFF' : theme.keyText }]}>{n}%</Text>
+        {/* Fields */}
+        <ScrollView
+          ref={listRef} style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}
+          onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }} scrollEventThrottle={32}
+          onLayout={(e) => { viewH.current = e.nativeEvent.layout.height; }}
+        >
+          <View style={[styles.glassCard, glassCard, { paddingVertical: 2 }]}>
+            {fields.map((f) => (
+              <React.Fragment key={f.key}>
+                {f.kind === 'tax' && showAddCoupon && (
+                  <Pressable onPress={addCoupon} onLayout={(e) => { heights.current.add = e.nativeEvent.layout.height; }}
+                    style={({ pressed }) => [styles.fieldRow, { flexDirection: row, backgroundColor: pressed ? theme.glass : 'transparent', borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
+                    <Ionicons name="add" size={18} color={theme.save} />
+                    <Text style={[styles.fieldLabel, font(700), { color: theme.save, textAlign: align }]}>{t.addCoupon}</Text>
                   </Pressable>
-                );
-              })}
-            </ScrollView>
-          ) : (
-            <Text style={[styles.suggestHint, { color: theme.secondary }]}>{current.adjustable ? t.pctOrAmt : t.priceHint}</Text>
-          )}
-        </View>
-        <View style={styles.keypad}>
-          <View style={styles.keyRow}>
-            {['7', '8', '9'].map((k) => <Key key={k} label={k} onPress={() => pressKey(k)} theme={theme} height={keyH} />)}
-            <Key icon="backspace-outline" variant="fn" onPress={() => pressKey('back')} onLongPress={() => pressKey('clear')} theme={theme} height={keyH} a11y={t.backspace} />
+                )}
+                <View onLayout={(e) => { heights.current[f.key] = e.nativeEvent.layout.height; }}>
+                  <FieldRow
+                    field={f} active={f.key === current.key} last={f.key === lastFieldKey} theme={theme} rtl={rtl} t={t} font={font}
+                    onPress={() => selectField(f.key)}
+                    onToggleType={() => { haptic.select(); setSelected(f.key); toggleType(f.key); }}
+                    onScan={f.kind === 'price' ? () => setScanVisible(true) : null}
+                    onRemove={f.kind === 'coupon' ? () => removeCoupon(f.id) : null}
+                  />
+                </View>
+              </React.Fragment>
+            ))}
           </View>
-          <View style={styles.keyRow}>
-            {['4', '5', '6'].map((k) => <Key key={k} label={k} onPress={() => pressKey(k)} theme={theme} height={keyH} />)}
-            <Key label="% / $" variant="fn" onPress={() => pressKey('type')} theme={theme} height={keyH} disabled={!current.adjustable} a11y={t.switchType} />
+        </ScrollView>
+
+        {/* Keypad tray */}
+        <View style={[styles.tray, { backgroundColor: theme.tray, borderColor: theme.glassBorder, paddingBottom: Math.max(insets.bottom, 10) }]}>
+          <View style={styles.chipBar}>
+            {presets ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled"
+                contentContainerStyle={[styles.chipInner, { flexDirection: row }]}>
+                {presets.map((n) => {
+                  const active = current.value === String(n);
+                  return (
+                    <Pressable key={n} onPress={() => pickPreset(n)}
+                      style={[styles.chip, { backgroundColor: active ? theme.solid : theme.glass }]}>
+                      <Text style={[styles.chipText, num(700), { color: active ? theme.onSolid : theme.text }]}>{n}%</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              <Text style={[styles.chipHint, font(600), { color: theme.textSecondary }]}>{current.adjustable ? t.pctOrAmt : t.priceHint}</Text>
+            )}
           </View>
-          <View style={styles.keyRow}>
-            {['1', '2', '3'].map((k) => <Key key={k} label={k} onPress={() => pressKey(k)} theme={theme} height={keyH} />)}
-            <Key label={t.clearField} variant="fn" onPress={() => pressKey('clear')} theme={theme} height={keyH} />
-          </View>
-          <View style={styles.keyRow}>
-            <Key label="." onPress={() => pressKey('.')} theme={theme} height={keyH} />
-            <Key label="0" onPress={() => pressKey('0')} theme={theme} height={keyH} />
-            <Key label={t.next} variant="primary" flex={2.06} onPress={() => pressKey('next')} theme={theme} height={keyH} />
+          <View style={styles.keypad}>
+            <View style={styles.keyRow}>
+              {['7', '8', '9'].map((k) => <Key key={k} label={k} onPress={() => pressKey(k)} theme={theme} height={keyH} font={font} />)}
+              <Key icon="backspace-outline" variant="fn" onPress={() => pressKey('back')} onLongPress={() => pressKey('clear')} theme={theme} height={keyH} a11y={t.backspace} font={font} />
+            </View>
+            <View style={styles.keyRow}>
+              {['4', '5', '6'].map((k) => <Key key={k} label={k} onPress={() => pressKey(k)} theme={theme} height={keyH} font={font} />)}
+              <Key label="% / $" variant="fn" onPress={() => pressKey('type')} theme={theme} height={keyH} disabled={!current.adjustable} a11y={t.switchType} font={font} />
+            </View>
+            <View style={styles.keyRow}>
+              {['1', '2', '3'].map((k) => <Key key={k} label={k} onPress={() => pressKey(k)} theme={theme} height={keyH} font={font} />)}
+              <Key label={t.clearField} variant="fn" onPress={() => pressKey('clear')} theme={theme} height={keyH} a11y="Clear" font={font} />
+            </View>
+            <View style={styles.keyRow}>
+              <Key label="." onPress={() => pressKey('.')} theme={theme} height={keyH} font={font} />
+              <Key label="0" onPress={() => pressKey('0')} theme={theme} height={keyH} font={font} />
+              <Key label={t.next} icon={rtl ? 'arrow-back' : 'arrow-forward'} variant="primary" flex={2.06} onPress={() => pressKey('next')} theme={theme} height={keyH} font={font} />
+            </View>
           </View>
         </View>
       </View>
@@ -733,85 +753,75 @@ export default function App() {
   );
 }
 
-const LIST_PAD = 12;
-
 const styles = StyleSheet.create({
   screen: { flex: 1 },
 
-  // Navigation
-  titleRow: { paddingHorizontal: 16, alignItems: 'center', gap: 10, minHeight: 44 },
-  largeTitle: { flex: 1, fontSize: 26, fontWeight: '700', letterSpacing: 0.2 },
-  largeTitleCompact: { fontSize: 22 },
-  navIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  navButton: { fontSize: 17, fontWeight: '400' },
+  // Header
+  header: { paddingHorizontal: 16, alignItems: 'center', gap: 8, minHeight: 44 },
+  title: { flex: 1, fontSize: 22, letterSpacing: -0.3 },
+  glassIcon: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   segWrap: { paddingHorizontal: 16, marginTop: 8, marginBottom: 12 },
-  seg: { borderRadius: 9, padding: 2 },
-  segItem: { flex: 1, height: 30, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
-  segItemActive: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 2 },
-  segText: { fontSize: 13 },
+  seg: { borderRadius: 999, borderWidth: 1, padding: 3 },
+  segItem: { flex: 1, height: 32, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  segText: { fontSize: 13.5 },
 
-  // Inset grouped
-  group: { borderRadius: 12, overflow: 'hidden' },
-  groupFooter: { fontSize: 13, lineHeight: 18, marginTop: 8, paddingHorizontal: 16 },
+  // Glass surfaces
+  glassCard: { borderRadius: 22, borderWidth: 1, overflow: 'hidden' },
 
-  // Result card
-  resultCard: { marginHorizontal: 16, paddingHorizontal: 16, paddingVertical: 12 },
+  // Result
+  resultCard: { marginHorizontal: 16, paddingHorizontal: 18, paddingVertical: 14, gap: 2 },
   resultTop: { justifyContent: 'space-between', alignItems: 'center' },
-  resultLabel: { fontSize: 15, fontWeight: '400' },
+  resultLabel: { fontSize: 11, letterSpacing: 1.3 },
+  resultActions: { gap: 6 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999 },
+  pillText: { fontSize: 12.5 },
   resultValueRow: { alignItems: 'baseline', gap: 10 },
-  resultValue: { fontSize: 48, fontWeight: '700', letterSpacing: -0.5, flexShrink: 1, fontVariant: ['tabular-nums'] },
-  resultStrike: { fontSize: 17, textDecorationLine: 'line-through', fontVariant: ['tabular-nums'] },
-  resultBottom: { alignItems: 'center', gap: 8 },
-  resultSave: { fontSize: 15, fontWeight: '600' },
-  resultSub: { fontSize: 15 },
-  detailsBtn: { alignItems: 'center', gap: 2 },
+  resultValue: { fontSize: 46, letterSpacing: -1.2, flexShrink: 1 },
+  resultStrike: { fontSize: 16, textDecorationLine: 'line-through' },
+  resultBottom: { alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' },
+  resultSave: { fontSize: 14, flexShrink: 1 },
+  resultTax: { fontSize: 13 },
 
   // Field list
-  list: { flex: 1, marginTop: 16 },
+  list: { flex: 1, marginTop: 12 },
   listContent: { paddingHorizontal: 16, paddingBottom: LIST_PAD },
-  listRow: { alignItems: 'center', gap: 12, minHeight: 48 },
-  rowIcon: { width: 29, height: 29, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
-  rowBody: { flex: 1, alignSelf: 'stretch', alignItems: 'center', gap: 10, minHeight: 48 },
-  rowLabel: { flex: 1, fontSize: 17 },
-  rowValueWrap: { flexDirection: 'row', alignItems: 'center', maxWidth: '50%' },
-  rowValue: { fontSize: 20, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  fieldRow: { minHeight: 50, paddingHorizontal: 14, alignItems: 'center', gap: 10 },
+  dot: { width: 9, height: 9, borderRadius: 5 },
+  fieldLabel: { flex: 1, fontSize: 15 },
+  typeToggle: { flexDirection: 'row', borderRadius: 8, padding: 2 },
+  typeOpt: { width: 26, height: 22, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  typeOptText: { fontSize: 12 },
+  valueWrap: { flexDirection: 'row', alignItems: 'center', maxWidth: '48%' },
+  fieldValue: { fontSize: 20 },
   caret: { width: 2, height: 22, borderRadius: 1, marginHorizontal: 1 },
-  typeToggle: { flexDirection: 'row', borderRadius: 7, padding: 2 },
-  typeOpt: { width: 28, height: 24, borderRadius: 5, alignItems: 'center', justifyContent: 'center' },
-  typeOptText: { fontSize: 13, fontWeight: '600' },
+  rowAction: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
 
-  // Keyboard tray
-  tray: { borderTopWidth: HAIRLINE, borderTopColor: 'rgba(0,0,0,0.2)' },
-  suggestBar: { height: 44, justifyContent: 'center' },
-  suggestInner: { paddingHorizontal: 8, gap: 6, alignItems: 'center' },
-  suggestHint: { fontSize: 13, textAlign: 'center' },
+  // Keypad tray
+  tray: { borderTopLeftRadius: 26, borderTopRightRadius: 26, borderWidth: 1, borderBottomWidth: 0, paddingTop: 4 },
+  chipBar: { height: 46, justifyContent: 'center' },
+  chipInner: { paddingHorizontal: 12, gap: 6, alignItems: 'center' },
+  chipHint: { fontSize: 13, textAlign: 'center' },
   chip: { paddingHorizontal: 14, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  chipText: { fontSize: 15, fontWeight: '500' },
-  keypad: { paddingHorizontal: 6, gap: 8 },
-  keyRow: { flexDirection: 'row', gap: 6 },
-  key: {
-    borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6,
-    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 1, shadowRadius: 0, elevation: 1,
-  },
-  keyDigit: { fontSize: 25, fontWeight: '400' },
-  keyFnText: { fontSize: 16, fontWeight: '500' },
+  chipText: { fontSize: 13.5 },
+  keypad: { paddingHorizontal: 10, gap: 7 },
+  keyRow: { flexDirection: 'row', gap: 7 },
+  key: { borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
+  keyDigit: { fontSize: 24 },
+  keyFnText: { fontSize: 15 },
 
   // Sheets
-  dim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  actionWrap: { paddingHorizontal: 8, gap: 8 },
-  actionGroup: { borderRadius: 14, overflow: 'hidden' },
-  actionHeader: { paddingVertical: 14, paddingHorizontal: 16, alignItems: 'center', gap: 2, borderBottomWidth: HAIRLINE },
-  actionTitle: { fontSize: 13, fontWeight: '600' },
-  actionSubtitle: { fontSize: 13, textAlign: 'center' },
-  actionRow: { height: 57, alignItems: 'center', justifyContent: 'center' },
-  actionText: { fontSize: 20 },
+  dim: { flex: 1, justifyContent: 'flex-end' },
+  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderBottomWidth: 0, paddingHorizontal: 20, paddingTop: 8, gap: 12 },
+  grabber: { width: 38, height: 5, borderRadius: 3, alignSelf: 'center', marginBottom: 6 },
+  sheetNav: { alignItems: 'center', gap: 10 },
+  sheetTitle: { fontSize: 20, textAlign: 'center' },
+  sheetSub: { fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 4 },
+  sheetBtn: { height: 54, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  sheetBtnText: { fontSize: 16 },
+  sheetGhost: { height: 44, alignItems: 'center', justifyContent: 'center' },
   scanningContainer: { alignItems: 'center', padding: 28, gap: 12 },
-  pageSheet: { borderTopLeftRadius: 12, borderTopRightRadius: 12, maxHeight: '85%' },
-  grabber: { width: 36, height: 5, borderRadius: 3, alignSelf: 'center', marginTop: 6 },
-  sheetNav: { height: 48, alignItems: 'center', paddingHorizontal: 16 },
-  sheetNavSide: { width: 70 },
-  sheetNavTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600' },
   detailRow: { minHeight: 44, alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, gap: 12 },
-  detailLabel: { fontSize: 17, flexShrink: 1 },
-  detailValue: { fontSize: 17, fontVariant: ['tabular-nums'] },
+  detailLabel: { fontSize: 15, flexShrink: 1 },
+  detailValue: { fontSize: 15 },
+  note: { fontSize: 13, lineHeight: 19, paddingHorizontal: 4 },
 });
