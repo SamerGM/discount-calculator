@@ -789,7 +789,7 @@ const CalculatorScreen = () => {
               <React.Fragment key={f.key}>
                 {f.kind === 'tax' && showAddCoupon && (
                   <Pressable onPress={addCoupon} onLayout={(e) => { heights.current.add = e.nativeEvent.layout.height; }}
-                    style={({ pressed }) => [styles.fieldRow, { flexDirection: row, backgroundColor: pressed ? theme.glass : 'transparent', borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
+                    style={({ pressed }) => [styles.fieldRow, { minHeight: 50, flexDirection: row, backgroundColor: pressed ? theme.glass : 'transparent', borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
                     <Ionicons name="add" size={18} color={theme.save} />
                     <Text style={[styles.fieldLabel, font(700), { color: theme.save, textAlign: align }]}>{t.addCoupon}</Text>
                   </Pressable>
@@ -842,8 +842,8 @@ const CalculatorScreen = () => {
               <Key label={t.clearField} variant="fn" onPress={() => pressKey('clear')} theme={theme} height={keyH} a11y="Clear" font={font} />
             </View>
             <View style={styles.keyRow}>
-              <Key label="0" onPress={() => pressKey('0')} theme={theme} height={keyH} font={font} />
               <Key label="." onPress={() => pressKey('.')} theme={theme} height={keyH} font={font} />
+              <Key label="0" onPress={() => pressKey('0')} theme={theme} height={keyH} font={font} />
               <Key label={t.next} icon={rtl ? 'arrow-back' : 'arrow-forward'} variant="primary" flex={2.06} onPress={() => pressKey('next')} theme={theme} height={keyH} font={font} />
             </View>
           </View>
@@ -895,15 +895,15 @@ const styles = StyleSheet.create({
   // Field list
   list: { flex: 1, marginTop: 12 },
   listContent: { paddingHorizontal: 16, paddingBottom: LIST_PAD },
-  fieldRow: { minHeight: 50, paddingHorizontal: 14, alignItems: 'center', gap: 10 },
+  fieldRow: { minHeight: 60, paddingHorizontal: 16, alignItems: 'center', gap: 10 },
   dot: { width: 9, height: 9, borderRadius: 5 },
-  fieldLabel: { flex: 1, fontSize: 15 },
+  fieldLabel: { flex: 1, fontSize: 16 },
   typeToggle: { flexDirection: flow(false), borderRadius: 8, padding: 2 },
   typeOpt: { width: 26, height: 22, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   typeOptText: { fontSize: 12 },
   valueWrap: { flexDirection: flow(false), alignItems: 'center', maxWidth: '48%' },
-  fieldValue: { fontSize: 20 },
-  caret: { width: 2, height: 22, borderRadius: 1, marginHorizontal: 1 },
+  fieldValue: { fontSize: 25 },
+  caret: { width: 2, height: 27, borderRadius: 1, marginHorizontal: 1 },
   rowAction: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
 
   // Keypad tray
