@@ -19,7 +19,8 @@
       },
       "package": "com.samer.discountcalculator",
       "versionCode": 27,
-      "targetSdkVersion": 36
+      "targetSdkVersion": 36,
+      "edgeToEdgeEnabled": true
     },
     "newArchEnabled": false,
     "extra": {

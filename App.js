@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet, Text, View, Pressable, ScrollView, StatusBar, Platform,
-  useColorScheme, useWindowDimensions, Modal, Alert, ActivityIndicator, Animated, I18nManager, AccessibilityInfo, Easing,
+  useColorScheme, useWindowDimensions, Dimensions, Modal, Alert, ActivityIndicator, Animated, I18nManager, AccessibilityInfo, Easing,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, RadialGradient, LinearGradient, Stop, Rect, Path, Circle, G } from 'react-native-svg';
@@ -222,8 +222,15 @@ const scanImageWithVisionAPI = async (base64Image) => {
 };
 
 // ─── Background ───────────────────────────────────────────────────────────────
-const Aurora = ({ theme }) => (
-  <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+// Sized in pixels to the whole physical screen: a percentage-sized Svg can render
+// narrower than its container on some Android phones, leaving a plain strip.
+const Aurora = ({ theme }) => {
+  const win = useWindowDimensions();
+  const scr = Dimensions.get('screen');
+  const w = Math.ceil(Math.max(win.width, scr.width));
+  const h = Math.ceil(Math.max(win.height, scr.height));
+  return (
+  <Svg style={styles.aurora} width={w} height={h} viewBox="0 0 100 100" preserveAspectRatio="none">
     <Defs>
       <RadialGradient id="ga" cx="0" cy="0" rx="85" ry="48" gradientUnits="userSpaceOnUse">
         <Stop offset="0" stopColor={theme.blobA} stopOpacity="1" />
@@ -243,7 +250,8 @@ const Aurora = ({ theme }) => (
     <Rect x="0" y="0" width="100" height="100" fill="url(#gb)" />
     <Rect x="0" y="0" width="100" height="100" fill="url(#gc)" />
   </Svg>
-);
+  );
+};
 
 // ─── Brand mark (same artwork as the app icon) ─────────────────────────────────
 const BagMark = ({ size = 120 }) => (
@@ -850,6 +858,7 @@ export default function App() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  aurora: { position: 'absolute', top: 0, left: 0 },
 
   // Header
   header: { paddingHorizontal: 16, alignItems: 'center', gap: 8, minHeight: 44 },
