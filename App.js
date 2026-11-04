@@ -58,7 +58,7 @@ const lightTheme = {
 const translations = {
   en: {
     appTitle: 'Shopping Calculator',
-    welcomeTag: 'Discounts, coupons and tax in seconds',
+    welcomeTag: 'Know the real price before you pay',
     simple: 'Simple', stacked: 'Stacked',
     price: 'Price', discount: 'Discount',
     discountN: (n) => (n === 1 ? 'First discount' : 'Second discount'),
@@ -82,7 +82,7 @@ const translations = {
   },
   ar: {
     appTitle: 'حاسبة التسوق',
-    welcomeTag: 'الخصومات والكوبونات والضريبة في ثوانٍ',
+    welcomeTag: 'اعرف السعر الحقيقي قبل أن تدفع',
     simple: 'بسيط', stacked: 'خصم مركب',
     price: 'السعر', discount: 'الخصم',
     discountN: (n) => (n === 1 ? 'الخصم الأول' : 'الخصم الثاني'),
