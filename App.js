@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet, Text, View, Pressable, ScrollView, StatusBar, Platform,
-  useColorScheme, useWindowDimensions, Modal, Alert, ActivityIndicator, Animated,
+  useColorScheme, useWindowDimensions, Modal, Alert, ActivityIndicator, Animated, I18nManager,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
@@ -12,6 +12,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+
+// The app lays out Arabic itself (row-reverse + right-aligned text). If the phone's
+// system language is RTL, Android would mirror everything a second time, flipping
+// the keypad. Turn system mirroring off (applies from the next launch) and, until
+// then, compensate so rows still read in the intended direction.
+I18nManager.allowRTL(false);
+I18nManager.forceRTL(false);
+const SYSTEM_RTL = I18nManager.isRTL;
+const flow = (rtl) => ((rtl !== SYSTEM_RTL) ? 'row-reverse' : 'row');
 
 const VISION_API_KEY = 'AIzaSyCdzCuPTWjo1j4HXjr6ZIgKtlZNNM_7YxE';
 
@@ -301,7 +310,7 @@ const ScanSheet = ({ visible, onClose, onResult, theme, t, font }) => {
 };
 
 const DetailsSheet = ({ visible, onClose, theme, t, rtl, result, stepLabel, stackNote, font }) => {
-  const row = rtl ? 'row-reverse' : 'row';
+  const row = flow(rtl);
   const Line = ({ label, value, color, bold, last }) => (
     <View style={[styles.detailRow, { flexDirection: row }, !last && { borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
       <Text style={[styles.detailLabel, font(bold ? 800 : 400), { color: bold ? theme.text : theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{label}</Text>
@@ -354,7 +363,7 @@ const GlassIcon = ({ name, onPress, theme, label }) => (
 );
 
 const Segmented = ({ options, value, onChange, theme, rtl, font }) => (
-  <View style={[styles.seg, { backgroundColor: theme.glass, borderColor: theme.glassBorder, flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+  <View style={[styles.seg, { backgroundColor: theme.glass, borderColor: theme.glassBorder, flexDirection: flow(rtl) }]}>
     {options.map((o) => {
       const active = o.value === value;
       return (
@@ -369,7 +378,7 @@ const Segmented = ({ options, value, onChange, theme, rtl, font }) => (
 );
 
 const FieldRow = ({ field, active, last, onPress, onToggleType, onRemove, onScan, theme, rtl, t, font }) => {
-  const row = rtl ? 'row-reverse' : 'row';
+  const row = flow(rtl);
   const empty = field.value === '';
   const valueColor = empty ? theme.textMuted : theme.text;
   return (
@@ -598,7 +607,7 @@ const CalculatorScreen = () => {
 
   // Size keys to the screen so the keypad fits small and large phones.
   const keyH = Math.max(42, Math.min(54, Math.round(height * 0.06)));
-  const row = rtl ? 'row-reverse' : 'row';
+  const row = flow(rtl);
   const align = rtl ? 'right' : 'left';
 
   if (!loaded || !fontsLoaded) return <View style={{ flex: 1, backgroundColor: theme.base }} />;
@@ -722,7 +731,7 @@ const CalculatorScreen = () => {
           </View>
           <View style={styles.keypad}>
             <View style={styles.keyRow}>
-              {['7', '8', '9'].map((k) => <Key key={k} label={k} onPress={() => pressKey(k)} theme={theme} height={keyH} font={font} />)}
+              {['1', '2', '3'].map((k) => <Key key={k} label={k} onPress={() => pressKey(k)} theme={theme} height={keyH} font={font} />)}
               <Key icon="backspace-outline" variant="fn" onPress={() => pressKey('back')} onLongPress={() => pressKey('clear')} theme={theme} height={keyH} a11y={t.backspace} font={font} />
             </View>
             <View style={styles.keyRow}>
@@ -730,12 +739,12 @@ const CalculatorScreen = () => {
               <Key label="% / $" variant="fn" onPress={() => pressKey('type')} theme={theme} height={keyH} disabled={!current.adjustable} a11y={t.switchType} font={font} />
             </View>
             <View style={styles.keyRow}>
-              {['1', '2', '3'].map((k) => <Key key={k} label={k} onPress={() => pressKey(k)} theme={theme} height={keyH} font={font} />)}
+              {['7', '8', '9'].map((k) => <Key key={k} label={k} onPress={() => pressKey(k)} theme={theme} height={keyH} font={font} />)}
               <Key label={t.clearField} variant="fn" onPress={() => pressKey('clear')} theme={theme} height={keyH} a11y="Clear" font={font} />
             </View>
             <View style={styles.keyRow}>
-              <Key label="." onPress={() => pressKey('.')} theme={theme} height={keyH} font={font} />
               <Key label="0" onPress={() => pressKey('0')} theme={theme} height={keyH} font={font} />
+              <Key label="." onPress={() => pressKey('.')} theme={theme} height={keyH} font={font} />
               <Key label={t.next} icon={rtl ? 'arrow-back' : 'arrow-forward'} variant="primary" flex={2.06} onPress={() => pressKey('next')} theme={theme} height={keyH} font={font} />
             </View>
           </View>
@@ -773,7 +782,7 @@ const styles = StyleSheet.create({
   resultTop: { justifyContent: 'space-between', alignItems: 'center' },
   resultLabel: { fontSize: 11, letterSpacing: 1.3 },
   resultActions: { gap: 6 },
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999 },
+  pill: { flexDirection: flow(false), alignItems: 'center', gap: 4, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999 },
   pillText: { fontSize: 12.5 },
   resultValueRow: { alignItems: 'baseline', gap: 10 },
   resultValue: { fontSize: 46, letterSpacing: -1.2, flexShrink: 1 },
@@ -788,10 +797,10 @@ const styles = StyleSheet.create({
   fieldRow: { minHeight: 50, paddingHorizontal: 14, alignItems: 'center', gap: 10 },
   dot: { width: 9, height: 9, borderRadius: 5 },
   fieldLabel: { flex: 1, fontSize: 15 },
-  typeToggle: { flexDirection: 'row', borderRadius: 8, padding: 2 },
+  typeToggle: { flexDirection: flow(false), borderRadius: 8, padding: 2 },
   typeOpt: { width: 26, height: 22, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   typeOptText: { fontSize: 12 },
-  valueWrap: { flexDirection: 'row', alignItems: 'center', maxWidth: '48%' },
+  valueWrap: { flexDirection: flow(false), alignItems: 'center', maxWidth: '48%' },
   fieldValue: { fontSize: 20 },
   caret: { width: 2, height: 22, borderRadius: 1, marginHorizontal: 1 },
   rowAction: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
@@ -804,8 +813,8 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: 14, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   chipText: { fontSize: 13.5 },
   keypad: { paddingHorizontal: 10, gap: 7 },
-  keyRow: { flexDirection: 'row', gap: 7 },
-  key: { borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
+  keyRow: { flexDirection: flow(false), gap: 7 },
+  key: { borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexDirection: flow(false), gap: 6 },
   keyDigit: { fontSize: 24 },
   keyFnText: { fontSize: 15 },
 
@@ -816,7 +825,7 @@ const styles = StyleSheet.create({
   sheetNav: { alignItems: 'center', gap: 10 },
   sheetTitle: { fontSize: 20, textAlign: 'center' },
   sheetSub: { fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 4 },
-  sheetBtn: { height: 54, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  sheetBtn: { height: 54, borderRadius: 18, flexDirection: flow(false), alignItems: 'center', justifyContent: 'center', gap: 8 },
   sheetBtnText: { fontSize: 16 },
   sheetGhost: { height: 44, alignItems: 'center', justifyContent: 'center' },
   scanningContainer: { alignItems: 'center', padding: 28, gap: 12 },
