@@ -63,7 +63,7 @@ jobs:
           echo "short=$SHORT" >> "$GITHUB_OUTPUT"
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: test-apk
           path: ${{ steps.apk.outputs.name }}
