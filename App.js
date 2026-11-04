@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet, Text, View, Pressable, ScrollView, StatusBar, Platform,
-  useColorScheme, useWindowDimensions, Modal, Alert, ActivityIndicator, Animated, I18nManager,
+  useColorScheme, useWindowDimensions, Modal, Alert, ActivityIndicator, Animated, I18nManager, AccessibilityInfo, Easing,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
+import Svg, { Defs, RadialGradient, LinearGradient, Stop, Rect, Path, Circle, G } from 'react-native-svg';
+import * as SplashScreen from 'expo-splash-screen';
 import {
   useFonts, Manrope_400Regular, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
@@ -17,9 +18,12 @@ import { Ionicons } from '@expo/vector-icons';
 // system language is RTL, Android would mirror everything a second time, flipping
 // the keypad. Turn system mirroring off (applies from the next launch) and, until
 // then, compensate so rows still read in the intended direction.
+// Keep the system splash up until the welcome screen has drawn its first frame.
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
 I18nManager.allowRTL(false);
 I18nManager.forceRTL(false);
-const SYSTEM_RTL = I18nManager.isRTL;
+const SYSTEM_RTL = I18nManager.isRTL === true; // undefined on web
 const flow = (rtl) => ((rtl !== SYSTEM_RTL) ? 'row-reverse' : 'row');
 
 const VISION_API_KEY = 'AIzaSyCdzCuPTWjo1j4HXjr6ZIgKtlZNNM_7YxE';
@@ -54,6 +58,7 @@ const lightTheme = {
 const translations = {
   en: {
     appTitle: 'Shopping Calculator',
+    welcomeTag: 'Discounts, coupons and tax in seconds',
     simple: 'Simple', stacked: 'Stacked',
     price: 'Price', discount: 'Discount',
     discountN: (n) => (n === 1 ? 'First discount' : 'Second discount'),
@@ -77,6 +82,7 @@ const translations = {
   },
   ar: {
     appTitle: 'حاسبة التسوق',
+    welcomeTag: 'الخصومات والكوبونات والضريبة في ثوانٍ',
     simple: 'بسيط', stacked: 'خصم مركب',
     price: 'السعر', discount: 'الخصم',
     discountN: (n) => (n === 1 ? 'الخصم الأول' : 'الخصم الثاني'),
@@ -238,6 +244,83 @@ const Aurora = ({ theme }) => (
     <Rect x="0" y="0" width="100" height="100" fill="url(#gc)" />
   </Svg>
 );
+
+// ─── Brand mark (same artwork as the app icon) ─────────────────────────────────
+const BagMark = ({ size = 120 }) => (
+  <Svg width={size} height={size} viewBox="22 18 56 68">
+    <Defs>
+      <LinearGradient id="bagFill" x1="0" y1="0" x2="1" y2="1">
+        <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0.55" />
+        <Stop offset="0.55" stopColor="#FFFFFF" stopOpacity="0.18" />
+        <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0.10" />
+      </LinearGradient>
+      <LinearGradient id="bagEdge" x1="0" y1="0" x2="1" y2="1">
+        <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0.95" />
+        <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0.35" />
+      </LinearGradient>
+    </Defs>
+    <Path d="M38 37 V32 Q38 22 50 22 Q62 22 62 32 V37" fill="none" stroke="#FFFFFF" strokeOpacity={0.9} strokeWidth={3.4} strokeLinecap="round" />
+    {/* soft drop shadow (react-native-svg has no drop-shadow filter) */}
+    <Path d="M27 38 H73 L69.5 80 Q69 84 65 84 H35 Q31 84 30.5 80 Z" fill="#140C3A" fillOpacity={0.22} />
+    <Path d="M27 36 H73 L69.5 78 Q69 82 65 82 H35 Q31 82 30.5 78 Z" fill="url(#bagFill)" stroke="url(#bagEdge)" strokeWidth={1.3} strokeLinejoin="round" />
+    <G fill="none" stroke="#FFFFFF" strokeWidth={3.8} strokeLinecap="round">
+      <Circle cx="43" cy="52" r="4" />
+      <Circle cx="57" cy="66" r="4" />
+    </G>
+    <Path d="M59 49 L41 69" stroke="#B9FFE9" strokeWidth={4} strokeLinecap="round" />
+  </Svg>
+);
+
+// ─── Welcome screen: ~1.5 s on every launch, tap to skip ──────────────────────
+const WELCOME_MS = 1500;
+const Welcome = ({ t, font, onDone }) => {
+  const logo = useRef(new Animated.Value(0)).current;
+  const text = useRef(new Animated.Value(0)).current;
+  const fade = useRef(new Animated.Value(1)).current;
+  const finished = useRef(false);
+  const driver = Platform.OS !== 'web';
+
+  const finish = (fast) => {
+    if (finished.current) return;
+    finished.current = true;
+    Animated.timing(fade, { toValue: 0, duration: fast ? 180 : 380, easing: Easing.out(Easing.quad), useNativeDriver: driver })
+      .start(() => onDone());
+  };
+
+  useEffect(() => {
+    let timer;
+    AccessibilityInfo.isReduceMotionEnabled().catch(() => false).then((reduce) => {
+      if (reduce) { logo.setValue(1); text.setValue(1); }
+      else {
+        Animated.parallel([
+          Animated.spring(logo, { toValue: 1, friction: 6, tension: 60, useNativeDriver: driver }),
+          Animated.timing(text, { toValue: 1, duration: 420, delay: 220, easing: Easing.out(Easing.cubic), useNativeDriver: driver }),
+        ]).start();
+      }
+      timer = setTimeout(() => finish(false), WELCOME_MS);
+    });
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill, { opacity: fade, zIndex: 10 }]}
+      onLayout={() => { SplashScreen.hideAsync().catch(() => {}); }}>
+      <Pressable style={styles.welcome} onPress={() => finish(true)} accessibilityRole="button" accessibilityLabel={t.appTitle}>
+        <Aurora theme={darkTheme} />
+        <Animated.View style={[styles.welcomeMark, {
+          opacity: logo,
+          transform: [{ scale: logo.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] }) }],
+        }]}>
+          <BagMark size={124} />
+        </Animated.View>
+        <Animated.View style={{ opacity: text, transform: [{ translateY: text.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }], alignItems: 'center', gap: 6 }}>
+          <Text style={[styles.welcomeTitle, font(800)]}>{t.appTitle}</Text>
+          <Text style={[styles.welcomeTag, font(600)]}>{t.welcomeTag}</Text>
+        </Animated.View>
+      </Pressable>
+    </Animated.View>
+  );
+};
 
 // ─── Sheets ───────────────────────────────────────────────────────────────────
 const SheetFrame = ({ visible, onClose, theme, dismissable = true, children }) => {
@@ -459,6 +542,7 @@ const CalculatorScreen = () => {
   const [selected, setSelected] = useState('price');
   const [scanVisible, setScanVisible] = useState(false);
   const [detailsVisible, setDetailsVisible] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(true);
   const nextId = useRef(1);
   const listRef = useRef(null);
   const heights = useRef({});
@@ -610,7 +694,8 @@ const CalculatorScreen = () => {
   const row = flow(rtl);
   const align = rtl ? 'right' : 'left';
 
-  if (!loaded || !fontsLoaded) return <View style={{ flex: 1, backgroundColor: theme.base }} />;
+  // Same colour as the system splash, which stays visible until the welcome screen draws.
+  if (!loaded || !fontsLoaded) return <View style={{ flex: 1, backgroundColor: darkTheme.base }} />;
 
   const presets = current.kind === 'tax' ? TAX_PICKS
     : current.adjustable && current.type === 'pct' ? DISCOUNT_PICKS : null;
@@ -750,6 +835,7 @@ const CalculatorScreen = () => {
           </View>
         </View>
       </View>
+      {showWelcome && <Welcome t={t} font={font} onDone={() => setShowWelcome(false)} />}
     </View>
   );
 };
@@ -817,6 +903,15 @@ const styles = StyleSheet.create({
   key: { borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexDirection: flow(false), gap: 6 },
   keyDigit: { fontSize: 24 },
   keyFnText: { fontSize: 15 },
+
+  // Welcome
+  welcome: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 22, paddingHorizontal: 32, backgroundColor: darkTheme.base },
+  welcomeMark: {
+    width: 176, height: 176, borderRadius: 48, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)',
+  },
+  welcomeTitle: { color: '#FFFFFF', fontSize: 28, letterSpacing: -0.4, textAlign: 'center' },
+  welcomeTag: { color: 'rgba(255,255,255,0.74)', fontSize: 15, textAlign: 'center' },
 
   // Sheets
   dim: { flex: 1, justifyContent: 'flex-end' },

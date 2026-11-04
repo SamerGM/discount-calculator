@@ -6,11 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1E3A8A"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.samer.discountcalculator"
@@ -18,7 +13,9 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#3B82F6"
+        "backgroundImage": "./assets/adaptive-background.png",
+        "monochromeImage": "./assets/monochrome-icon.png",
+        "backgroundColor": "#1E1744"
       },
       "package": "com.samer.discountcalculator",
       "versionCode": 27,
@@ -32,7 +29,19 @@
     },
     "plugins": [
       "expo-asset",
-      "expo-font"
-    ]
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#1E1744"
+        }
+      ]
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
   }
 }
