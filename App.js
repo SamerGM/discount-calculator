@@ -58,7 +58,7 @@ const lightTheme = {
 const translations = {
   en: {
     appTitle: 'Shopping Calculator',
-    welcomeTag: 'Know the real price before you pay',
+    welcomeLines: ['Shop smart.', 'Know the real price.', 'Hassle-free.'],
     simple: 'Simple', stacked: 'Stacked',
     price: 'Price', discount: 'Discount',
     discountN: (n) => (n === 1 ? 'First discount' : 'Second discount'),
@@ -82,7 +82,7 @@ const translations = {
   },
   ar: {
     appTitle: 'حاسبة التسوق',
-    welcomeTag: 'اعرف السعر الحقيقي قبل أن تدفع',
+    welcomeLines: ['تسوّق بذكاء.', 'اعرف السعر الحقيقي.', 'بلا عناء.'],
     simple: 'بسيط', stacked: 'خصم مركب',
     price: 'السعر', discount: 'الخصم',
     discountN: (n) => (n === 1 ? 'الخصم الأول' : 'الخصم الثاني'),
@@ -281,6 +281,7 @@ const BagMark = ({ size = 120 }) => (
 
 // ─── Welcome screen: ~1.5 s on every launch, tap to skip ──────────────────────
 const WELCOME_MS = 1500;
+const WELCOME_LAYOUT = 'three'; // 'two': one sentence + accent line; 'three': one phrase per line
 const Welcome = ({ t, font, onDone }) => {
   const logo = useRef(new Animated.Value(0)).current;
   const text = useRef(new Animated.Value(0)).current;
@@ -323,7 +324,12 @@ const Welcome = ({ t, font, onDone }) => {
         </Animated.View>
         <Animated.View style={{ opacity: text, transform: [{ translateY: text.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }], alignItems: 'center', gap: 6 }}>
           <Text style={[styles.welcomeTitle, font(800)]}>{t.appTitle}</Text>
-          <Text style={[styles.welcomeTag, font(600)]}>{t.welcomeTag}</Text>
+          {(WELCOME_LAYOUT === 'two'
+            ? [`${t.welcomeLines[0]} ${t.welcomeLines[1]}`, t.welcomeLines[2]]
+            : t.welcomeLines
+          ).map((line, i, all) => (
+            <Text key={i} style={[styles.welcomeTag, font(i === all.length - 1 ? 800 : 600), i === all.length - 1 && styles.welcomeTagAccent]}>{line}</Text>
+          ))}
         </Animated.View>
       </Pressable>
     </Animated.View>
@@ -920,7 +926,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)',
   },
   welcomeTitle: { color: '#FFFFFF', fontSize: 28, letterSpacing: -0.4, textAlign: 'center' },
-  welcomeTag: { color: 'rgba(255,255,255,0.74)', fontSize: 15, textAlign: 'center' },
+  welcomeTag: { color: 'rgba(255,255,255,0.78)', fontSize: 16, lineHeight: 22, textAlign: 'center' },
+  welcomeTagAccent: { color: '#B9FFE9', marginTop: 2 },
 
   // Sheets
   dim: { flex: 1, justifyContent: 'flex-end' },
