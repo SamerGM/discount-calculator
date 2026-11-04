@@ -1,0 +1,80 @@
+name: Build test APK
+
+# Installable APK for testing on a phone. Separate from the Play Store build:
+# no versionCode bump, no upload keystore (signed with the default debug key).
+on:
+  push:
+    branches:
+      - 'claude/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: test-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - name: Prebuild Android
+        run: npx expo prebuild --platform android --clean
+
+      - name: Build release APK (debug-signed)
+        run: |
+          cd android
+          ./gradlew assembleRelease --no-daemon -Dorg.gradle.jvmargs=-Xmx4g
+
+      - name: Name the APK
+        id: apk
+        run: |
+          SHORT=$(git rev-parse --short HEAD)
+          NAME="shopping-calculator-test-${SHORT}.apk"
+          cp android/app/build/outputs/apk/release/app-release.apk "$NAME"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "short=$SHORT" >> "$GITHUB_OUTPUT"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-apk
+          path: ${{ steps.apk.outputs.name }}
+          retention-days: 14
+
+      - name: Publish pre-release with the APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="test-${{ steps.apk.outputs.short }}"
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" "${{ steps.apk.outputs.name }}" \
+            --prerelease \
+            --target "${{ github.sha }}" \
+            --title "Test build ${{ steps.apk.outputs.short }} (${{ github.ref_name }})" \
+            --notes "Test APK built from ${{ github.ref_name }} at ${{ github.sha }}. Not for the Play Store: signed with the debug key."

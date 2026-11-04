@@ -26,6 +26,8 @@ jobs:
           distribution: 'temurin'
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
       - name: Install Expo CLI
         run: npm install -g @expo/cli
       - name: Auto increment version code
