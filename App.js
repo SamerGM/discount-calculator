@@ -129,6 +129,10 @@ const translations = {
     deal: 'Set the offer criteria', dealAdd: 'Add an offer', dealAddShort: 'e.g. buy 1 get 1',
     dealTypes: { none: 'No offer', free: 'Get items free', pct: 'Extra item discount', bundle: 'Group price', bulk: 'Buy more, pay less', spend: 'Spend & save' },
     dealExample: { none: 'Pay the normal price for one item.', free: 'Example: buy 2, get 1 free', pct: 'Example: buy 1, get the 2nd at 50% off', bundle: 'Example: 3 for AED 100', bulk: 'Example: buy 3 or more, 20% off all', spend: 'Example: spend AED 200, save AED 50' },
+    scanOfferTitle: 'Scan the offer sign', scanOfferSub: 'Take a photo and we’ll fill in the criteria for you',
+    scanFoundTitle: 'WE READ THIS OFFER', scanFromSign: (r) => `From the sign: “${r}”`, scanIsCorrect: 'Is this correct?',
+    scanYes: 'Yes, use it', scanNo: 'No, I’ll set it', scanNoOffer: 'No offer found on this photo. Try again or set it below.',
+    removeOffer: 'Remove offer', permNeeded: 'Camera or gallery permission is needed.',
     dealQuick: 'POPULAR OFFERS', dealKind: 'SET THE OFFER CRITERIA', getFree: 'You get free', getDisc: 'Discounted items',
     dealTpl: { b1g1: 'Buy 1 get 1 free', second50: '2nd at 50% off', b2g1: 'Buy 2 get 1 free', b1g1_25: '2nd at 25% off', bundle3: '3 for a price', bulk3: 'Buy 3, save 20%', spend: 'Spend & save' },
     dealSecond: (p) => `Buy 1, get the 2nd ${p}% off`,
@@ -198,6 +202,10 @@ const translations = {
     deal: 'حدد تفاصيل العرض', dealAdd: 'إضافة عرض', dealAddShort: 'مثل: اشترِ 1 واحصل على 1',
     dealTypes: { none: 'بدون عرض', free: 'احصل على قطع مجاناً', pct: 'خصم على القطعة الإضافية', bundle: 'سعر المجموعة', bulk: 'اشترِ أكثر وادفع أقل', spend: 'أنفق ووفّر' },
     dealExample: { none: 'ادفع السعر العادي لقطعة واحدة.', free: 'مثال: اشترِ 2 واحصل على 1 مجاناً', pct: 'مثال: اشترِ 1 والثانية بخصم 50%', bundle: 'مثال: 3 قطع بـ 100 درهم', bulk: 'مثال: اشترِ 3 أو أكثر بخصم 20% على الكل', spend: 'مثال: أنفق 200 درهم ووفّر 50' },
+    scanOfferTitle: 'صوّر لافتة العرض', scanOfferSub: 'التقط صورة وسنملأ تفاصيل العرض لك',
+    scanFoundTitle: 'قرأنا هذا العرض', scanFromSign: (r) => `من اللافتة: «${r}»`, scanIsCorrect: 'هل هذا صحيح؟',
+    scanYes: 'نعم، استخدمه', scanNo: 'لا، سأحدده بنفسي', scanNoOffer: 'لم نجد عرضاً في هذه الصورة. حاول مرة أخرى أو حدده بالأسفل.',
+    removeOffer: 'إزالة العرض', permNeeded: 'يلزم إذن الكاميرا أو المعرض.',
     dealQuick: 'العروض الشائعة', dealKind: 'حدد تفاصيل العرض', getFree: 'تحصل مجاناً على', getDisc: 'القطع المخفّضة',
     dealTpl: { b1g1: 'اشترِ 1 واحصل على 1 مجاناً', second50: 'الثانية بخصم 50%', b2g1: 'اشترِ 2 واحصل على 1 مجاناً', b1g1_25: 'الثانية بخصم 25%', bundle3: '3 بسعر', bulk3: 'اشترِ 3 ووفّر 20%', spend: 'أنفق ووفّر' },
     dealSecond: (p) => `اشترِ 1 والثانية بخصم ${p}%`,
@@ -717,7 +725,7 @@ const Key = ({ label, icon, onPress, onLongPress, theme, height, variant = 'digi
 
 // ─── Multi-buy deal ───────────────────────────────────────────────────────────
 const DEFAULT_DEAL = { type: 'none', buy: 1, get: 1, pct: 50, n: 3, bundle: '', min: 3, offPct: 20, spend: '', spendOff: '', spendType: 'amt' };
-const DEAL_TYPES = ['none', 'free', 'pct', 'bundle', 'bulk', 'spend'];
+const DEAL_TYPES = ['free', 'pct', 'bundle', 'bulk', 'spend'];
 // One-tap versions of the most common shop offers.
 const DEAL_TEMPLATES = [
   { key: 'b1g1', deal: { type: 'free', buy: 1, get: 1 } },
@@ -741,6 +749,36 @@ const dealText = (d, t, money) => {
   }
   return t.dealAdd;
 };
+// Reads a shop's offer sign and returns deal criteria, or null if none is recognised.
+const AR_DIGITS = '٠١٢٣٤٥٦٧٨٩';
+const parseOffer = (input) => {
+  const s = (input || '').replace(/[٠-٩]/g, (d) => String(AR_DIGITS.indexOf(d))).replace(/\s+/g, ' ').toLowerCase();
+  const n = (x) => parseInt(x, 10);
+  const amt = '(?:aed|sar|qar|kwd|bhd|omr|egp|usd|eur|gbp|[$€£]|درهم|ريال|جنيه|دينار)?\\s*';
+  let m;
+  if (/\bbogo\b/.test(s)) return { type: 'free', buy: 1, get: 1 };
+  if ((m = s.match(/buy\s*(\d+)\s*(?:,|and)?\s*get\s*(\d+)\s*(?:item[s]?\s*)?(?:for\s*)?free/))) return { type: 'free', buy: n(m[1]), get: n(m[2]) };
+  if ((m = s.match(/buy\s*(\d+)\s*(?:,|and)?\s*get\s*(\d+)\s*(?:at\s*)?(\d+)\s*%\s*off/))) return { type: 'pct', buy: n(m[1]), get: n(m[2]), pct: n(m[3]) };
+  if ((m = s.match(/(\d+)\s*(?:st|nd|rd|th)\s*(?:item|piece|one)?\s*(?:at\s*)?(\d+)\s*%\s*off/))) return { type: 'pct', buy: Math.max(1, n(m[1]) - 1), get: 1, pct: n(m[2]) };
+  if ((m = s.match(/(?:second|2nd)\s*(?:item|piece)?\s*(?:at\s*)?half\s*price/))) return { type: 'pct', buy: 1, get: 1, pct: 50 };
+  if ((m = s.match(new RegExp('spend\\s*(?:over\\s*)?' + amt + '(\\d+(?:\\.\\d+)?)[^\\d%]*?(?:save|get|off)\\s*' + amt + '(\\d+(?:\\.\\d+)?)\\s*(%)?'))))
+    return { type: 'spend', n: 1, spend: m[1], spendOff: m[2], spendType: m[3] ? 'pct' : 'amt' };
+  if ((m = s.match(/buy\s*(\d+)\s*(?:or more|\+)[^\d]*?(?:save|get)?\s*(\d+)\s*%/))) return { type: 'bulk', min: n(m[1]), offPct: n(m[2]) };
+  if ((m = s.match(new RegExp('(\\d+)\\s*(?:pcs|pieces|items)?\\s*for\\s*' + amt + '(\\d+(?:\\.\\d+)?)')))) {
+    const a = n(m[1]); if (a >= 2 && a <= 9) return { type: 'bundle', n: a, bundle: m[2] };
+  }
+  if ((m = s.match(/\b(\d)\s*\+\s*(\d)\b/))) return { type: 'free', buy: n(m[1]), get: n(m[2]) };
+  // Arabic
+  if ((m = s.match(/اشتر[يِ]?\s*(\d+)\s*(?:و\s*)?احصل\s*على\s*(\d+)\s*(?:مجان|مجّان)/))) return { type: 'free', buy: n(m[1]), get: n(m[2]) };
+  if ((m = s.match(/(?:القطعة\s*)?الثاني[ةه]\s*(?:ب|بخصم)\s*(\d+)\s*%/))) return { type: 'pct', buy: 1, get: 1, pct: n(m[1]) };
+  if ((m = s.match(new RegExp('(\\d+)\\s*(?:قطع|حبات|حبة)?\\s*ب\\s*' + amt + '(\\d+(?:\\.\\d+)?)')))) {
+    const a = n(m[1]); if (a >= 2 && a <= 9) return { type: 'bundle', n: a, bundle: m[2] };
+  }
+  if ((m = s.match(new RegExp('(?:أنفق|انفق|تسوق ب)\\s*' + amt + '(\\d+)[^\\d%]*?(?:وفر|وفّر|خصم)\\s*' + amt + '(\\d+)\\s*(%)?'))))
+    return { type: 'spend', n: 1, spend: m[1], spendOff: m[2], spendType: m[3] ? 'pct' : 'amt' };
+  return null;
+};
+
 const cleanAmount = (v, dec) => {
   const s = v.replace(',', '.').replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
   const [i, f] = s.split('.');
@@ -791,6 +829,26 @@ const AmountField = ({ label, value, onChange, theme, font, rtl, rg, placeholder
 
 const DealSheet = ({ visible, onClose, deal, onChange, theme, t, font, rtl, money, rg }) => {
   const set = (patch) => onChange({ ...deal, ...patch });
+  const [scanState, setScanState] = useState(null); // null | 'busy' | { found, raw } | 'none'
+  useEffect(() => { if (visible) setScanState(null); }, [visible]);
+  const scanOffer = async (useCamera) => {
+    if (!ocrSupported) { Alert.alert(t.scanUnavailable); return; }
+    try {
+      const perm = useCamera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (perm.status !== 'granted') { Alert.alert(t.permNeeded); return; }
+      const res = useCamera
+        ? await ImagePicker.launchCameraAsync({ quality: 0.8, allowsEditing: false, exif: false })
+        : await ImagePicker.launchImageLibraryAsync({ quality: 0.8, allowsEditing: false, exif: false });
+      if (res.canceled || !res.assets?.[0]?.uri) return;
+      setScanState('busy');
+      const uri = res.assets[0].uri;
+      const blocks = await extractTextFromImage(uri.startsWith('file://') ? decodeURI(uri.slice(7)) : uri);
+      const raw = (blocks || []).join(' ');
+      const found = parseOffer(raw);
+      setScanState(found ? { found, raw } : 'none');
+    } catch (e) { setScanState('none'); }
+  };
+  const confirmScan = () => { haptic.tap(); onChange({ ...DEFAULT_DEAL, ...deal, ...scanState.found }); setScanState(null); };
   const preview = deal.type === 'none' ? t.dealHint : `${dealText(deal, t, money)} · ${t.dealHint}`;
   return (
     <SheetFrame visible={visible} onClose={onClose} theme={theme} tall>
@@ -802,6 +860,44 @@ const DealSheet = ({ visible, onClose, deal, onChange, theme, t, font, rtl, mone
               <Text style={[styles.pillText, font(700), { color: theme.onSolid }]}>{t.done}</Text>
             </Pressable>
           </View>
+
+          {/* Scan the offer sign */}
+          {scanState && scanState !== 'busy' && scanState !== 'none' ? (
+            <View style={[styles.glassCard, { backgroundColor: theme.glassStrong, borderColor: theme.glassBorder, padding: 16, gap: 10 }]}>
+              <Text style={[styles.sectionLabel, font(700), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.scanFoundTitle}</Text>
+              <Text style={[styles.scanFound, font(800), { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>{dealText({ ...DEFAULT_DEAL, ...scanState.found }, t, money)}</Text>
+              <Text numberOfLines={2} style={[styles.regionMeta, font(600), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.scanFromSign(scanState.raw.slice(0, 60))}</Text>
+              <Text style={[styles.sheetSub, font(700), { color: theme.text, textAlign: rtl ? 'right' : 'left', marginBottom: 0 }]}>{t.scanIsCorrect}</Text>
+              <View style={{ flexDirection: flow(rtl), gap: 8 }}>
+                <Pressable onPress={confirmScan} style={[styles.sheetBtn, { flex: 1, backgroundColor: theme.solid }]}>
+                  <Text style={[styles.sheetBtnText, font(700), { color: theme.onSolid }]}>{t.scanYes}</Text>
+                </Pressable>
+                <Pressable onPress={() => setScanState(null)} style={[styles.sheetBtn, { flex: 1, backgroundColor: theme.glass }]}>
+                  <Text style={[styles.sheetBtnText, font(700), { color: theme.text }]}>{t.scanNo}</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <View style={[styles.glassCard, styles.scanCard, { flexDirection: flow(rtl), backgroundColor: theme.glass, borderColor: theme.glassBorder }]}>
+              <View style={[styles.fxBadge, { backgroundColor: theme.glassStrong }]}>
+                {scanState === 'busy' ? <ActivityIndicator color={theme.text} /> : <Ionicons name="scan-outline" size={22} color={theme.text} />}
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={[styles.fxCardHint, font(800), { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>{t.scanOfferTitle}</Text>
+                <Text style={[styles.regionMeta, font(600), { color: scanState === 'none' ? theme.danger : theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>
+                  {scanState === 'busy' ? t.scanning : scanState === 'none' ? t.scanNoOffer : t.scanOfferSub}
+                </Text>
+              </View>
+              <View style={{ gap: 6 }}>
+                <Pressable onPress={() => scanOffer(true)} disabled={scanState === 'busy'} accessibilityLabel={t.takePhoto} style={[styles.scanIconBtn, { backgroundColor: theme.solid }]}>
+                  <Ionicons name="camera" size={18} color={theme.onSolid} />
+                </Pressable>
+                <Pressable onPress={() => scanOffer(false)} disabled={scanState === 'busy'} accessibilityLabel={t.chooseGallery} style={[styles.scanIconBtn, { backgroundColor: theme.glassStrong }]}>
+                  <Ionicons name="image-outline" size={18} color={theme.text} />
+                </Pressable>
+              </View>
+            </View>
+          )}
 
           <Text style={[styles.sectionLabel, font(700), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.dealQuick}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.chipInner, { flexDirection: flow(rtl), paddingHorizontal: 0 }]}>
@@ -817,7 +913,7 @@ const DealSheet = ({ visible, onClose, deal, onChange, theme, t, font, rtl, mone
             {DEAL_TYPES.map((v) => {
               const on = deal.type === v;
               return (
-                <Pressable key={v} onPress={() => { haptic.select(); set({ type: v, ...(v !== deal.type && v === 'spend' ? { n: 1 } : v !== deal.type && v === 'bundle' ? { n: Math.max(2, deal.n) } : {}) }); }}
+                <Pressable key={v} onPress={() => { haptic.select(); set(v === deal.type ? { type: 'none' } : { type: v, ...(v === 'spend' ? { n: 1 } : v === 'bundle' ? { n: Math.max(2, deal.n) } : {}) }); }}
                   style={[styles.chip, { backgroundColor: on ? theme.solid : theme.glass }]}>
                   <Text style={[styles.chipText, font(700), { color: on ? theme.onSolid : theme.text }]}>{t.dealTypes[v]}</Text>
                 </Pressable>
@@ -825,7 +921,7 @@ const DealSheet = ({ visible, onClose, deal, onChange, theme, t, font, rtl, mone
             })}
           </View>
 
-          <Text style={[styles.dealExample, font(600), { color: theme.save, textAlign: rtl ? 'right' : 'left' }]}>{t.dealExample[deal.type]}</Text>
+          {deal.type !== 'none' && <Text style={[styles.dealExample, font(600), { color: theme.save, textAlign: rtl ? 'right' : 'left' }]}>{t.dealExample[deal.type]}</Text>}
           {deal.type !== 'none' && (
             <View style={[styles.glassCard, { backgroundColor: theme.glass, borderColor: theme.glassBorder, padding: 14, gap: 12 }]}>
               {(deal.type === 'free' || deal.type === 'pct') && (
@@ -882,6 +978,11 @@ const DealSheet = ({ visible, onClose, deal, onChange, theme, t, font, rtl, mone
             </View>
           )}
           <Text style={[styles.note, font(600), { color: deal.type === 'none' ? theme.textSecondary : theme.save, textAlign: 'center' }]}>{preview}</Text>
+          {deal.type !== 'none' && (
+            <Pressable onPress={() => { haptic.select(); set({ type: 'none' }); }} style={styles.sheetGhost}>
+              <Text style={[styles.sheetBtnText, font(700), { color: theme.danger }]}>{t.removeOffer}</Text>
+            </Pressable>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SheetFrame>
@@ -1768,6 +1869,9 @@ const styles = StyleSheet.create({
   fxCardRate: { fontSize: 12 },
   dealExample: { fontSize: 13 },
   rowHint: { fontSize: 13 },
+  scanCard: { padding: 14, alignItems: 'center', gap: 12 },
+  scanIconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  scanFound: { fontSize: 22 },
   fxRateText: { fontSize: 20 },
   fxSource: { fontSize: 11, textAlign: 'center' },
   searchBox: { height: 48, borderRadius: 16, borderWidth: 1, paddingHorizontal: 14, alignItems: 'center', gap: 8 },
