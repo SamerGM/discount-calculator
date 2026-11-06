@@ -102,7 +102,7 @@ const darkTheme = {
   glass: 'rgba(255,255,255,0.13)', glassStrong: 'rgba(255,255,255,0.26)', glassBorder: 'rgba(255,255,255,0.26)',
   separator: 'rgba(255,255,255,0.14)', solid: '#FFFFFF', onSolid: '#241B4D',
   save: '#B9FFE9', danger: '#FF9C9C',
-  dotPrice: '#FFFFFF', dotDiscount: '#B9FFE9', dotCoupon: '#FFD36E', dotTax: '#FFA3BE',
+  dotPrice: '#FFFFFF', dotDiscount: '#B9FFE9', dotTax: '#FFA3BE',
   tray: 'rgba(14,9,38,0.45)', key: 'rgba(255,255,255,0.12)', keyFn: 'rgba(255,255,255,0.22)', keyDown: 'rgba(255,255,255,0.32)',
   sheet: '#2A2160', dim: 'rgba(8,5,24,0.55)',
 };
@@ -113,7 +113,7 @@ const lightTheme = {
   glass: 'rgba(255,255,255,0.5)', glassStrong: 'rgba(255,255,255,0.85)', glassBorder: 'rgba(255,255,255,0.85)',
   separator: 'rgba(27,22,64,0.09)', solid: '#1B1640', onSolid: '#FFFFFF',
   save: '#0B7F67', danger: '#D23C3C',
-  dotPrice: '#5B4FE0', dotDiscount: '#12A587', dotCoupon: '#E0A100', dotTax: '#E2557E',
+  dotPrice: '#5B4FE0', dotDiscount: '#12A587', dotTax: '#E2557E',
   tray: 'rgba(255,255,255,0.42)', key: 'rgba(255,255,255,0.72)', keyFn: 'rgba(255,255,255,0.38)', keyDown: 'rgba(255,255,255,0.95)',
   sheet: '#F7F6FF', dim: 'rgba(27,22,64,0.35)',
 };
@@ -126,7 +126,7 @@ const translations = {
     simple: 'Simple', stacked: 'Stacked',
     price: 'Price', discount: 'Discount',
     discountN: (n) => (n === 1 ? 'First discount' : 'Second discount'),
-    coupon: (n) => `Coupon ${n}`, addCoupon: 'Add coupon or voucher', tax: 'VAT / tax',
+    tax: 'VAT / tax',
     pctOrAmt: (s) => `Tap % or ${s} to switch`, amt: 'Amt',
     deal: 'Multi-buy deal', dealAdd: 'Add a deal',
     dealTypes: { none: 'No deal', free: 'Buy X get Y free', pct: 'Buy X get Y % off', bundle: 'X for a price', bulk: 'Buy more, save %', spend: 'Spend & save' },
@@ -146,7 +146,6 @@ const translations = {
     fxOwnTitle: 'OR ENTER YOUR OWN RATE (E.G. FROM YOUR BANK)', fxUseOwn: 'Use my rate', fxUpdateOwn: 'Update my rate',
     fxTurnOff: 'Turn off conversion', fxConfirmPrompt: (c) => `Confirm the ${c} rate`,
     hideKeypad: 'Hide keypad', tapToEdit: 'Tap a row to enter a value',
-    couponHint: (s) => `Extra code or voucher, taken off after the discount. Tap % or ${s}`,
     vatSaveDefault: (v) => `Save ${v}% as default VAT`, vatSaved: 'Default VAT saved',
     vatEdit: 'VAT rate (%) — edit if it’s not right',
     dealFree: (b, g) => `Buy ${b} get ${g} free`,
@@ -183,7 +182,7 @@ const translations = {
     breakdown: 'Breakdown', original: 'Original price', subtotal: 'Subtotal', total: 'Total',
     effective: 'Effective discount',
     stackedNote: (parts, eq) => `${parts} stacked = ${eq}% off. Discounts apply one after another, so they don't add up.`,
-    next: 'Next', removeCoupon: 'Remove coupon', clearField: 'C', backspace: 'Delete',
+    next: 'Next', clearField: 'C', backspace: 'Delete',
     switchType: 'Switch between percent and amount',
     takePhoto: 'Take photo', chooseGallery: 'Choose from gallery', cancel: 'Cancel',
     scanning: 'Scanning…', scanFailed: 'Could not detect a price. Please enter it manually.',
@@ -197,7 +196,7 @@ const translations = {
     simple: 'بسيط', stacked: 'خصم مركب',
     price: 'السعر', discount: 'الخصم',
     discountN: (n) => (n === 1 ? 'الخصم الأول' : 'الخصم الثاني'),
-    coupon: (n) => `كوبون ${n}`, addCoupon: 'إضافة كوبون أو قسيمة', tax: 'الضريبة',
+    tax: 'الضريبة',
     pctOrAmt: (s) => `اضغط % أو ${s} للتبديل`, amt: 'مبلغ',
     deal: 'عرض الشراء المتعدد', dealAdd: 'إضافة عرض',
     dealTypes: { none: 'بدون عرض', free: 'اشترِ واحصل مجاناً', pct: 'اشترِ واحصل بخصم %', bundle: 'عدد بسعر', bulk: 'اشترِ أكثر ووفّر %', spend: 'أنفق ووفّر' },
@@ -217,7 +216,6 @@ const translations = {
     fxOwnTitle: 'أو أدخل سعرك الخاص (مثلاً من بنكك)', fxUseOwn: 'استخدام سعري', fxUpdateOwn: 'تحديث سعري',
     fxTurnOff: 'إيقاف التحويل', fxConfirmPrompt: (c) => `أكّد سعر ${c}`,
     hideKeypad: 'إخفاء لوحة الأرقام', tapToEdit: 'اضغط على خانة لإدخال قيمة',
-    couponHint: (s) => `كود أو قسيمة إضافية تُخصم بعد الخصم. اضغط % أو ${s}`,
     vatSaveDefault: (v) => `حفظ \u200E${v}%\u200F كضريبة افتراضية`, vatSaved: 'تم حفظ الضريبة الافتراضية',
     vatEdit: 'نسبة الضريبة (%) — عدّلها إن لم تكن صحيحة',
     dealFree: (b, g) => `اشترِ ${b} واحصل على ${g} مجاناً`,
@@ -254,7 +252,7 @@ const translations = {
     breakdown: 'التفاصيل', original: 'السعر الأصلي', subtotal: 'المجموع قبل الضريبة', total: 'الإجمالي',
     effective: 'الخصم الفعلي',
     stackedNote: (parts, eq) => `${parts} متراكم = ${eq}% فعلياً. الخصومات تُطبَّق بالتسلسل ولا تُجمع.`,
-    next: 'التالي', removeCoupon: 'حذف الكوبون', clearField: 'C', backspace: 'حذف',
+    next: 'التالي', clearField: 'C', backspace: 'حذف',
     switchType: 'التبديل بين النسبة والمبلغ',
     takePhoto: 'التقاط صورة', chooseGallery: 'اختيار من المعرض', cancel: 'إلغاء',
     scanning: 'جارٍ المسح…', scanFailed: 'لم يتم اكتشاف السعر. يرجى الإدخال يدوياً.',
@@ -284,7 +282,6 @@ const fmtMoney = (n, r) => {
 };
 const trimNum = (n) => String(Math.round(n * 100) / 100);
 
-const MAX_COUPONS = 5;
 const MAX_DIGITS = 9;
 const DISCOUNT_PICKS = [10, 20, 25, 30, 40, 50, 70];
 const TAX_PICKS = [5, 10, 14, 15, 16, 20];
@@ -300,7 +297,7 @@ const haptic = {
 };
 
 /**
- * Applies discounts, then coupons, in order on the running price, then tax.
+ * Applies discounts in order on the running price, then tax.
  * Each adjustment is { value, type: 'pct' | 'amt' }. A fixed amount can never
  * push the price below zero.
  */
@@ -312,10 +309,10 @@ const dealQty = (d) => {
   if (d.type === 'bulk') return d.min;
   return 1;
 };
-const calculate = ({ price, discounts, coupons, tax, deal }) => {
+const calculate = ({ price, discounts, tax, deal }) => {
   const unit = parseNum(price);
   // Multi-buy deals. The price entered is per item. Item deals (free / % off / bundle /
-  // bulk) apply first, then discounts and coupons, then "spend & save", then tax.
+  // bulk) apply first, then discounts, then "spend & save", then tax.
   const d = deal && deal.type !== 'none' ? deal : null;
   const qty = dealQty(d);
   const p = unit * qty;
@@ -339,7 +336,6 @@ const calculate = ({ price, discounts, coupons, tax, deal }) => {
     steps.push({ kind, index, type: adj.type, value, amount: -cut });
   };
   discounts.forEach((d, i) => apply(d, 'discount', i));
-  coupons.forEach((c, i) => apply(c, 'coupon', i));
   if (d && d.type === 'spend' && unit > 0) {
     const min = parseNum(d.spend); const off = parseNum(d.spendOff);
     if (off > 0 && running >= min) {
@@ -667,7 +663,7 @@ const Segmented = ({ options, value, onChange, theme, rtl, font }) => (
   </View>
 );
 
-const FieldRow = ({ field, active, last, onPress, onToggleType, onRemove, onScan, theme, rtl, t, font, sym, amtShort }) => {
+const FieldRow = ({ field, active, last, onPress, onToggleType, onScan, theme, rtl, t, font, sym, amtShort }) => {
   const row = flow(rtl);
   const empty = field.value === '';
   const valueColor = empty ? theme.textMuted : theme.text;
@@ -697,11 +693,6 @@ const FieldRow = ({ field, active, last, onPress, onToggleType, onRemove, onScan
       {onScan && (
         <Pressable onPress={onScan} hitSlop={8} accessibilityLabel={t.scanTitle} style={[styles.rowAction, { backgroundColor: theme.glass }]}>
           <Ionicons name="camera-outline" size={17} color={theme.text} />
-        </Pressable>
-      )}
-      {onRemove && (
-        <Pressable onPress={onRemove} hitSlop={8} accessibilityLabel={t.removeCoupon} style={[styles.rowAction, { backgroundColor: theme.glass }]}>
-          <Ionicons name="close" size={17} color={theme.danger} />
         </Pressable>
       )}
     </Pressable>
@@ -1168,7 +1159,6 @@ const FxSheet = ({ visible, onClose, rg, home, onHome, fx, onRefresh, manual, on
 const emptyForm = (vat = 0) => ({
   price: '',
   discounts: [{ value: '', type: 'pct' }, { value: '', type: 'pct' }],
-  coupons: [],
   tax: vat > 0 ? String(vat) : '',
   deal: { ...DEFAULT_DEAL },
 });
@@ -1179,7 +1169,6 @@ const restoreForm = (raw) => {
   return {
     price: typeof raw.price === 'string' ? raw.price : '',
     discounts: Array.isArray(raw.discounts) && raw.discounts.length === 2 ? raw.discounts : base.discounts,
-    coupons: Array.isArray(raw.coupons) ? raw.coupons.filter((c) => c && typeof c.id === 'number') : [],
     tax: typeof raw.tax === 'string' ? raw.tax : '',
     deal: { ...DEFAULT_DEAL, ...(raw.deal || {}) },
   };
@@ -1216,7 +1205,6 @@ const CalculatorScreen = () => {
   const [fx, setFx] = useState({ rates: null, time: 0, loading: false, error: false, base: '' });
   const [fxVisible, setFxVisible] = useState(false);
   const undoTimer = useRef(null);
-  const nextId = useRef(1);
   const listRef = useRef(null);
   const heights = useRef({});
   const scrollY = useRef(0);
@@ -1240,7 +1228,6 @@ const CalculatorScreen = () => {
         const restored = savedForm ? restoreForm(JSON.parse(savedForm)) : null;
         if (restored) {
           setForm(restored);
-          nextId.current = restored.coupons.reduce((m, c) => Math.max(m, c.id), 0) + 1;
         } else if (r) {
           setForm(emptyForm(r.vat));
         }
@@ -1335,10 +1322,6 @@ const CalculatorScreen = () => {
       key: `d${i}`, kind: 'discount', label: stacked ? t.discountN(i + 1) : t.discount,
       dot: theme.dotDiscount, value: d.value, type: d.type, adjustable: true,
     }));
-    form.coupons.forEach((c, i) => list.push({
-      key: `c${c.id}`, kind: 'coupon', label: t.coupon(i + 1), id: c.id,
-      dot: theme.dotCoupon, value: c.value, type: c.type, adjustable: true,
-    }));
     list.push({ key: 'tax', kind: 'tax', label: t.tax, dot: theme.dotTax, value: form.tax, type: 'pct', adjustable: false });
     return list;
   }, [form, stacked, t, theme]);
@@ -1347,9 +1330,8 @@ const CalculatorScreen = () => {
   const lastDiscountKey = stacked ? 'd1' : 'd0';
   const lastDiscountKeyRef = useRef(lastDiscountKey);
   lastDiscountKeyRef.current = lastDiscountKey;
-  const showAddCoupon = form.coupons.length < MAX_COUPONS;
 
-  // If the selected field disappears (coupon removed, mode switched), fall back to price.
+  // If the selected field disappears (mode switched), fall back to price.
   useEffect(() => {
     if (!fields.some((f) => f.key === selected)) setSelected('price');
   }, [fields, selected]);
@@ -1362,7 +1344,6 @@ const CalculatorScreen = () => {
       if (!listRef.current) return;
       const order = [];
       fields.forEach((f) => {
-        if (f.kind === 'tax' && showAddCoupon) order.push('add');
         order.push(f.key);
         if (f.key === lastDiscountKeyRef.current) order.push('deal');
       });
@@ -1381,17 +1362,13 @@ const CalculatorScreen = () => {
       }
     }, 80);
     return () => clearTimeout(timer);
-  }, [current.key, fields.length, showAddCoupon]);
+  }, [current.key, fields.length]);
 
   const updateField = (key, fn) => setForm((f) => {
     if (key === 'price') return { ...f, price: fn({ value: f.price, type: 'amt' }).value };
     if (key === 'tax') return { ...f, tax: fn({ value: f.tax, type: 'pct' }).value };
-    if (key[0] === 'd') {
-      const i = Number(key.slice(1));
-      return { ...f, discounts: f.discounts.map((d, j) => (j === i ? { ...d, ...fn(d) } : d)) };
-    }
-    const id = Number(key.slice(1));
-    return { ...f, coupons: f.coupons.map((c) => (c.id === id ? { ...c, ...fn(c) } : c)) };
+    const i = Number(key.slice(1));
+    return { ...f, discounts: f.discounts.map((d, j) => (j === i ? { ...d, ...fn(d) } : d)) };
   });
 
   const toggleType = (key) => updateField(key, (adj) => {
@@ -1432,14 +1409,6 @@ const CalculatorScreen = () => {
 
   const pickPreset = (n) => { haptic.select(); updateField(current.key, (adj) => ({ value: adj.value === String(n) ? '' : String(n) })); };
 
-  const addCoupon = () => {
-    haptic.select();
-    const id = nextId.current++;
-    setForm((f) => ({ ...f, coupons: [...f.coupons, { id, value: '', type: 'pct' }] }));
-    setSelected(`c${id}`);
-    openKeypad();
-  };
-  const removeCoupon = (id) => { haptic.tap(); setForm((f) => ({ ...f, coupons: f.coupons.filter((c) => c.id !== id) })); };
   // Reset keeps the country's VAT and offers an Undo for a few seconds.
   const reset = () => {
     haptic.tap();
@@ -1460,18 +1429,16 @@ const CalculatorScreen = () => {
   const result = useMemo(() => calculate({
     price: form.price,
     discounts: form.discounts.slice(0, stacked ? 2 : 1),
-    coupons: form.coupons,
     tax: form.tax,
     deal: form.deal,
   }), [form, stacked]);
 
-  const canReset = !!(form.price || form.coupons.length || form.discounts.some((d) => d.value)
+  const canReset = !!(form.price || form.discounts.some((d) => d.value)
     || form.deal.type !== 'none' || form.tax !== (rg.vat > 0 ? String(rg.vat) : ''));
 
   const adjText = (s) => (s.type === 'pct' ? `${trimNum(s.value)}%` : money(s.value));
   const stepLabel = (s) => {
     if (s.kind === 'discount') return `${stacked ? t.discountN(s.index + 1) : t.discount} (${adjText(s)})`;
-    if (s.kind === 'coupon') return `${t.coupon(s.index + 1)} (${adjText(s)})`;
     if (s.kind === 'deal') return dealText(form.deal, t, money);
     return `${t.tax} (${trimNum(s.value)}%)`;
   };
@@ -1601,13 +1568,6 @@ const CalculatorScreen = () => {
           <View style={[styles.glassCard, glassCard, { paddingVertical: 2 }]}>
             {fields.map((f) => (
               <React.Fragment key={f.key}>
-                {f.kind === 'tax' && showAddCoupon && (
-                  <Pressable onPress={addCoupon} onLayout={(e) => { heights.current.add = e.nativeEvent.layout.height; }}
-                    style={({ pressed }) => [styles.fieldRow, { minHeight: 50, flexDirection: row, backgroundColor: pressed ? theme.glass : 'transparent', borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
-                    <Ionicons name="add" size={18} color={theme.save} />
-                    <Text style={[styles.fieldLabel, font(700), { color: theme.save, textAlign: align }]}>{t.addCoupon}</Text>
-                  </Pressable>
-                )}
                 <View onLayout={(e) => { heights.current[f.key] = e.nativeEvent.layout.height; }}>
                   <FieldRow
                     field={f} active={keypadOpen && f.key === current.key} last={f.key === lastFieldKey} theme={theme} rtl={rtl} t={t} font={font}
@@ -1615,7 +1575,6 @@ const CalculatorScreen = () => {
                     onPress={() => selectField(f.key)}
                     onToggleType={() => { haptic.select(); setSelected(f.key); openKeypad(); toggleType(f.key); }}
                     onScan={f.kind === 'price' ? () => setScanVisible(true) : null}
-                    onRemove={f.kind === 'coupon' ? () => removeCoupon(f.id) : null}
                   />
                 </View>
                 {f.key === lastDiscountKey && (
@@ -1653,8 +1612,6 @@ const CalculatorScreen = () => {
                 <Ionicons name="bookmark-outline" size={14} color={theme.onSolid} />
                 <Text style={[styles.chipText, font(700), { color: theme.onSolid }]}>{t.vatSaveDefault(trimNum(Math.min(parseNum(form.tax), 100)))}</Text>
               </Pressable>
-            ) : current.kind === 'coupon' && current.type === 'amt' ? (
-              <Text numberOfLines={2} style={[styles.chipHint, font(600), { color: theme.textSecondary, paddingHorizontal: 12 }]}>{t.couponHint(amtShort)}</Text>
             ) : presets ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled"
                 contentContainerStyle={[styles.chipInner, { flexDirection: row }]}>
