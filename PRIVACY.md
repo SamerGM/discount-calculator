@@ -9,6 +9,7 @@ Easy Shopping Calculator ("the app") is a calculator for discounts, coupons, mul
 - The app has **no accounts, no ads and no analytics**.
 - Everything you type stays **on your phone**.
 - Price-tag photos are read **on your phone** and are **not uploaded** by the app.
+- The only thing the app downloads is **daily exchange rates**, and only if you turn on home-currency conversion.
 
 ## Information stored on your device
 
@@ -19,6 +20,7 @@ The app saves the following on your phone only, so it is still there the next ti
 | The values you enter (price, discounts, coupons, deal, VAT) | So your calculation survives the app being closed |
 | Your chosen country, currency and VAT rate (if you save it) | So you are not asked again |
 | Language, light/dark theme and Simple/Stacked mode | To remember your preferences |
+| Your home currency, any exchange rate you enter, and the last downloaded rates | To convert prices, also when you are offline |
 
 This information never leaves your device. Uninstalling the app, or clearing its storage in Android settings, deletes it.
 
@@ -33,6 +35,10 @@ If you choose **Scan price tag**, the app asks for permission to use the camera,
 ## Google ML Kit
 
 On-device text recognition is provided by Google ML Kit. Google states that ML Kit may contact Google's servers to receive bug fixes, updated models and hardware compatibility information, and may send Google anonymous metrics about the performance and usage of the ML Kit features. This does not include your photos or the text in them. See Google's ML Kit terms: https://developers.google.com/ml-kit/terms
+
+## Exchange rates
+
+If you choose a home currency, the app downloads exchange rates about once a day from ExchangeRate-API (https://www.exchangerate-api.com), using the address `open.er-api.com`. The request contains only the currency code of the country you are shopping in, for example `AED`. Like any internet request, it also reveals your device's IP address to that service. No account, identifier, photo or calculation is sent. If you enter your own exchange rate, nothing is downloaded for that currency pair.
 
 ## Location
 

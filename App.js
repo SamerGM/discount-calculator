@@ -47,6 +47,29 @@ const COUNTRIES = [
   { id: 'US', en: 'United States', ar: 'الولايات المتحدة', cur: 'USD', sym: '$', dec: 2, vat: 0, note: 'state' },
   { id: 'IN', en: 'India', ar: 'الهند', cur: 'INR', sym: '₹', dec: 2, vat: 18, note: 'varies' },
 ];
+// Home currencies offered for conversion (one per currency in the country list).
+const CURRENCIES = COUNTRIES.map(({ cur, sym, dec, en, ar }) => ({ cur, sym, dec, en, ar }));
+
+// Live exchange rates: free, no API key (https://www.exchangerate-api.com, open access,
+// updated daily). Only the currency code is sent. Cached for offline use.
+const FX_URL = (base) => `https://open.er-api.com/v6/latest/${base}`;
+const FX_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const fetchRates = async (base) => {
+  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = setTimeout(() => ctrl && ctrl.abort(), 8000);
+  try {
+    const res = await fetch(FX_URL(base), ctrl ? { signal: ctrl.signal } : undefined);
+    const data = await res.json();
+    if (data.result !== 'success' || !data.rates) throw new Error('bad response');
+    return { base, rates: data.rates, time: (data.time_last_update_unix || 0) * 1000 || Date.now(), fetched: Date.now() };
+  } finally { clearTimeout(timer); }
+};
+const fmtRate = (r) => (r >= 100 ? r.toFixed(2) : r >= 1 ? r.toFixed(4) : r.toPrecision(4));
+const fmtDate = (ms, lang) => {
+  try { return new Date(ms).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', { day: 'numeric', month: 'short' }); }
+  catch (e) { return new Date(ms).toISOString().slice(0, 10); }
+};
+
 // Used until the shopper picks a country (or after Skip): plain numbers, no tax.
 const NO_REGION = { id: '', cur: '', sym: '', dec: 2, vat: 0 };
 
@@ -103,6 +126,16 @@ const translations = {
     currencyCode: 'Currency code (e.g. AED)', vatRate: 'VAT / tax %', continueBtn: 'Continue',
     currencyBtn: 'Currency and VAT',
     cleared: 'All fields cleared', undo: 'Undo',
+    fxPrompt: 'Show price in your home currency', fxTitle: 'Your home currency',
+    fxSub: 'See what you pay in your own currency while you shop abroad.',
+    fxOff: 'Off', fxApprox: (a) => `≈ ${a}`, fxIn: 'In your currency',
+    fxRate: (from, rate, to) => `1 ${from} = ${rate} ${to}`,
+    fxUpdated: (d) => `Live rate · updated ${d}`, fxManualOn: 'Your own rate',
+    fxOffline: (d) => `Offline · last rate from ${d}`, fxLoading: 'Getting today’s rate…',
+    fxFailed: 'Couldn’t get the rate. Check your connection or enter your own rate.',
+    fxRefresh: 'Refresh', fxOwn: 'Use my own rate', fxOwnHint: (from, to) => `1 ${from} = ? ${to}`,
+    fxUseLive: 'Use live rate', fxSave: 'Save rate', fxSame: 'Same as the shopping currency',
+    fxNeedRegion: 'Choose where you are shopping first (currency button).', fxSource: 'Rates by Exchange Rate API',
     scanUnavailable: 'Scanning works in the app on your phone.',
     finalPrice: 'FINAL PRICE', reset: 'Reset', details: 'Details', done: 'Done',
     youSave: (a, p) => `You save ${a} · ${p}%`,
@@ -145,6 +178,16 @@ const translations = {
     currencyCode: 'رمز العملة (مثل AED)', vatRate: 'نسبة الضريبة %', continueBtn: 'متابعة',
     currencyBtn: 'العملة والضريبة',
     cleared: 'تم مسح الحقول', undo: 'تراجع',
+    fxPrompt: 'اعرض السعر بعملة بلدك', fxTitle: 'عملة بلدك',
+    fxSub: 'اعرف كم تدفع بعملتك أثناء التسوق في الخارج.',
+    fxOff: 'إيقاف', fxApprox: (a) => `≈ ‎${a}‏`, fxIn: 'بعملتك',
+    fxRate: (from, rate, to) => `‎1 ${from} = ${rate} ${to}‏`,
+    fxUpdated: (d) => `سعر مباشر · تحديث ${d}`, fxManualOn: 'سعرك الخاص',
+    fxOffline: (d) => `بدون إنترنت · آخر سعر ${d}`, fxLoading: 'جارٍ جلب سعر اليوم…',
+    fxFailed: 'تعذر جلب السعر. تحقق من الاتصال أو أدخل سعرك الخاص.',
+    fxRefresh: 'تحديث', fxOwn: 'استخدام سعري الخاص', fxOwnHint: (from, to) => `‎1 ${from} = ? ${to}‏`,
+    fxUseLive: 'استخدام السعر المباشر', fxSave: 'حفظ السعر', fxSame: 'نفس عملة التسوق',
+    fxNeedRegion: 'اختر مكان التسوق أولاً (زر العملة).', fxSource: 'الأسعار من Exchange Rate API',
     scanUnavailable: 'المسح يعمل داخل التطبيق على هاتفك.',
     finalPrice: 'السعر النهائي', reset: 'مسح الكل', details: 'التفاصيل', done: 'تم',
     youSave: (a, p) => `وفّرت ‎${a} · ${p}%‏`,
@@ -479,7 +522,7 @@ const ScanSheet = ({ visible, onClose, onResult, theme, t, font }) => {
   );
 };
 
-const DetailsSheet = ({ visible, onClose, theme, t, rtl, result, stepLabel, stackNote, font, money }) => {
+const DetailsSheet = ({ visible, onClose, theme, t, rtl, result, stepLabel, stackNote, font, money, converted }) => {
   const row = flow(rtl);
   const Line = ({ label, value, color, bold, last }) => (
     <View style={[styles.detailRow, { flexDirection: row }, !last && { borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
@@ -504,7 +547,8 @@ const DetailsSheet = ({ visible, onClose, theme, t, rtl, result, stepLabel, stac
         {taxes.map((s) => <Line key="tax" label={stepLabel(s)} value={`+${money(s.amount)}`} />)}
         <Line label={t.total} value={money(result.final)} bold last={result.savings <= 0 && result.qty === 1} />
         {result.qty > 1 && <Line label={t.perItem} value={money(result.perItem)} last={result.savings <= 0} />}
-        {result.savings > 0 && <Line label={t.effective} value={`${result.savingsPct.toFixed(1)}%`} color={theme.save} last />}
+        {result.savings > 0 && <Line label={t.effective} value={`${result.savingsPct.toFixed(1)}%`} color={theme.save} last={!converted} />}
+        {!!converted && <Line label={t.fxIn} value={t.fxApprox(converted)} last />}
       </View>
       {stackNote && <Text style={[styles.note, font(400), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{stackNote}</Text>}
     </SheetFrame>
@@ -749,6 +793,93 @@ const RegionSheet = ({ visible, fromButton, onSkip, onApply, theme, t, font, rtl
   );
 };
 
+// ─── Home-currency conversion ─────────────────────────────────────────────────
+const FxSheet = ({ visible, onClose, rg, home, onHome, fx, onRefresh, manual, onManual, theme, t, font, rtl, lang }) => {
+  const [own, setOwn] = useState('');
+  const [editing, setEditing] = useState(false);
+  useEffect(() => { if (visible) { setEditing(false); setOwn(manual ? String(manual) : ''); } }, [visible]);
+  const align = rtl ? 'right' : 'left';
+  const live = home && fx.rates ? fx.rates[home.cur] : null;
+  const status = !home ? null
+    : manual ? t.fxManualOn
+    : fx.loading && !live ? t.fxLoading
+    : live ? (fx.error ? t.fxOffline(fmtDate(fx.time, lang)) : t.fxUpdated(fmtDate(fx.time, lang)))
+    : t.fxFailed;
+  const rate = manual || live;
+  const saveOwn = () => {
+    const v = parseNum(own.replace(',', '.'));
+    if (v > 0) { onManual(v); setEditing(false); }
+  };
+  return (
+    <SheetFrame visible={visible} onClose={onClose} theme={theme} tall>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ gap: 12, flexShrink: 1 }}>
+        <View style={[styles.sheetNav, { flexDirection: flow(rtl) }]}>
+          <Text style={[styles.sheetTitle, font(800), { color: theme.text, flex: 1, textAlign: align }]}>{t.fxTitle}</Text>
+          <Pressable onPress={onClose} hitSlop={10} style={[styles.pill, { backgroundColor: theme.solid }]}>
+            <Text style={[styles.pillText, font(700), { color: theme.onSolid }]}>{t.done}</Text>
+          </Pressable>
+        </View>
+        <Text style={[styles.sheetSub, font(400), { color: theme.textSecondary, textAlign: align }]}>{rg.cur ? t.fxSub : t.fxNeedRegion}</Text>
+
+        {home && rg.cur && (
+          <View style={[styles.glassCard, { backgroundColor: theme.glass, borderColor: theme.glassBorder, padding: 14, gap: 10 }]}>
+            <Text style={[styles.fxRateText, num(800), { color: theme.text, textAlign: align }]}>
+              {rate ? t.fxRate(rg.cur, fmtRate(rate), home.cur) : '—'}
+            </Text>
+            <Text style={[styles.regionMeta, font(600), { color: !rate ? theme.danger : theme.textSecondary, textAlign: align }]}>{status}</Text>
+            {editing ? (
+              <View style={[{ flexDirection: flow(rtl), gap: 8, alignItems: 'center' }]}>
+                <TextInput value={own} onChangeText={(v) => setOwn(v.replace(/[^0-9.,]/g, ''))} autoFocus
+                  placeholder={t.fxOwnHint(rg.cur, home.cur)} placeholderTextColor={theme.textMuted} keyboardType="decimal-pad" maxLength={12}
+                  style={[styles.textInput, num(700), { flex: 1, color: theme.text, backgroundColor: theme.glass, borderColor: theme.glassBorder, textAlign: align }]} />
+                <Pressable onPress={saveOwn} style={[styles.pill, { backgroundColor: theme.solid, height: 52, paddingHorizontal: 16 }]}>
+                  <Text style={[styles.pillText, font(700), { color: theme.onSolid }]}>{t.fxSave}</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={[{ flexDirection: flow(rtl), gap: 8, flexWrap: 'wrap' }]}>
+                {manual ? (
+                  <Pressable onPress={() => onManual(null)} style={[styles.pill, { backgroundColor: theme.glassStrong }]}>
+                    <Text style={[styles.pillText, font(700), { color: theme.text }]}>{t.fxUseLive}</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable onPress={onRefresh} disabled={fx.loading} style={[styles.pill, { backgroundColor: theme.glassStrong, opacity: fx.loading ? 0.5 : 1 }]}>
+                    <Ionicons name="refresh" size={13} color={theme.text} />
+                    <Text style={[styles.pillText, font(700), { color: theme.text }]}>{t.fxRefresh}</Text>
+                  </Pressable>
+                )}
+                <Pressable onPress={() => setEditing(true)} style={[styles.pill, { backgroundColor: theme.glassStrong }]}>
+                  <Ionicons name="create-outline" size={13} color={theme.text} />
+                  <Text style={[styles.pillText, font(700), { color: theme.text }]}>{t.fxOwn}</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
+        )}
+
+        <ScrollView style={[styles.glassCard, styles.regionList, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}>
+          {[{ cur: '' }, ...CURRENCIES].map((c, i, all) => {
+            const selected = (home ? home.cur : '') === c.cur;
+            const same = c.cur && c.cur === rg.cur;
+            return (
+              <Pressable key={c.cur || 'off'} disabled={same} onPress={() => { haptic.select(); onHome(c.cur ? c : null); }}
+                style={({ pressed }) => [styles.regionRow, { flexDirection: flow(rtl), opacity: same ? 0.45 : 1, backgroundColor: pressed ? theme.glassStrong : 'transparent' },
+                  i < all.length - 1 && { borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.regionName, font(700), { color: theme.text, textAlign: align }]}>{c.cur ? c.cur : t.fxOff}</Text>
+                  {!!c.cur && <Text style={[styles.regionMeta, font(600), { color: theme.textSecondary, textAlign: align }]}>{same ? t.fxSame : c[lang]}</Text>}
+                </View>
+                {selected && <Ionicons name="checkmark-circle" size={22} color={theme.save} />}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+        <Text style={[styles.fxSource, font(600), { color: theme.textMuted }]}>{t.fxSource}</Text>
+      </KeyboardAvoidingView>
+    </SheetFrame>
+  );
+};
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 const emptyForm = (vat = 0) => ({
   price: '',
@@ -792,6 +923,10 @@ const CalculatorScreen = () => {
   const [dealVisible, setDealVisible] = useState(false);
   const [undoForm, setUndoForm] = useState(null);
   const [trayH, setTrayH] = useState(0);
+  const [home, setHome] = useState(null);           // { cur, sym, dec } or null
+  const [fxManual, setFxManual] = useState({});      // { 'AED>EUR': 0.25 }
+  const [fx, setFx] = useState({ rates: null, time: 0, loading: false, error: false, base: '' });
+  const [fxVisible, setFxVisible] = useState(false);
   const undoTimer = useRef(null);
   const nextId = useRef(1);
   const listRef = useRef(null);
@@ -802,12 +937,15 @@ const CalculatorScreen = () => {
   useEffect(() => {
     (async () => {
       try {
-        const [savedTheme, savedLang, savedMode, savedRegion, savedForm] = await Promise.all(
-          ['theme', 'lang', 'mode', 'region', 'form'].map((k) => AsyncStorage.getItem(k))
+        const [savedTheme, savedLang, savedMode, savedRegion, savedForm, savedHome, savedFxManual] = await Promise.all(
+          ['theme', 'lang', 'mode', 'region', 'form', 'home', 'fxManual'].map((k) => AsyncStorage.getItem(k))
         );
         setIsDark(savedTheme !== null ? savedTheme === 'dark' : systemScheme !== 'light');
         if (savedLang && translations[savedLang]) setLang(savedLang);
         if (savedMode === 'simple' || savedMode === 'stacked') setMode(savedMode);
+        const h = savedHome ? JSON.parse(savedHome) : null;
+        if (h && h.cur) setHome(h);
+        if (savedFxManual) setFxManual(JSON.parse(savedFxManual) || {});
         const r = savedRegion ? JSON.parse(savedRegion) : null;
         if (r && typeof r.dec === 'number') { setRegion(r); setRegionSaved(true); }
         const restored = savedForm ? restoreForm(JSON.parse(savedForm)) : null;
@@ -854,6 +992,47 @@ const CalculatorScreen = () => {
   const rg = region || NO_REGION;
   const money = (n) => fmtMoney(n, rg);
   const amtShort = rg.sym || t.amt;
+
+  // Exchange rates for the shopping currency: cached copy first, refresh once a day.
+  const loadRates = async (force) => {
+    const base = rg.cur;
+    if (!base) return;
+    let cached = null;
+    try { const raw = await AsyncStorage.getItem(`fx:${base}`); cached = raw ? JSON.parse(raw) : null; } catch (e) { cached = null; }
+    if (cached) setFx({ ...cached, loading: false, error: false });
+    if (!force && cached && Date.now() - cached.fetched < FX_MAX_AGE_MS) return;
+    // Never carry another currency's rates over: start from this base's cache or nothing.
+    setFx(cached ? { ...cached, loading: true, error: false } : { rates: null, time: 0, fetched: 0, base, loading: true, error: false });
+    try {
+      const fresh = await fetchRates(base);
+      persist(`fx:${base}`, JSON.stringify(fresh));
+      setFx({ ...fresh, loading: false, error: false });
+    } catch (e) {
+      setFx((f) => ({ ...f, base, loading: false, error: true }));
+    }
+  };
+  useEffect(() => {
+    if (loaded && home && rg.cur && home.cur !== rg.cur) loadRates(false);
+  }, [loaded, home && home.cur, rg.cur]);
+
+  const fxKey = home ? `${rg.cur}>${home.cur}` : '';
+  const manualRate = fxManual[fxKey] || null;
+  const liveRate = home && fx.base === rg.cur && fx.rates ? fx.rates[home.cur] : null;
+  const fxRate = home && rg.cur && home.cur !== rg.cur ? (manualRate || liveRate) : null;
+  const homeRegion = home ? { sym: home.sym, dec: home.dec } : null;
+  const chooseHome = (c) => {
+    const h = c ? { cur: c.cur, sym: c.sym, dec: c.dec } : null;
+    setHome(h);
+    if (h) persist('home', JSON.stringify(h)); else AsyncStorage.removeItem('home').catch(() => {});
+  };
+  const setManual = (v) => {
+    setFxManual((m) => {
+      const next = { ...m };
+      if (v) next[fxKey] = v; else delete next[fxKey];
+      persist('fxManual', JSON.stringify(next));
+      return next;
+    });
+  };
 
   // Ordered list of editable fields; "Next" walks through it.
   const fields = useMemo(() => {
@@ -983,6 +1162,7 @@ const CalculatorScreen = () => {
     if (s.kind === 'deal') return dealText(form.deal, t);
     return `${t.tax} (${trimNum(s.value)}%)`;
   };
+  const converted = fxRate && result.original > 0 ? fmtMoney(result.final * fxRate, homeRegion) : '';
   const pctDiscounts = result.steps.filter((s) => s.kind === 'discount' && s.type === 'pct');
   const stackNote = stacked && pctDiscounts.length >= 2
     ? t.stackedNote(
@@ -1015,7 +1195,11 @@ const CalculatorScreen = () => {
           if (discount) updateField('d0', () => ({ value: discount, type: 'pct' }));
         }} />
       <DetailsSheet visible={detailsVisible} onClose={() => setDetailsVisible(false)} theme={theme} t={t} rtl={rtl}
-        result={result} stepLabel={stepLabel} stackNote={stackNote} font={font} money={money} />
+        result={result} stepLabel={stepLabel} stackNote={stackNote} font={font} money={money} converted={converted} />
+      <FxSheet visible={fxVisible} onClose={() => setFxVisible(false)} rg={rg} home={home} onHome={chooseHome}
+        fx={fx.base === rg.cur ? fx : { rates: null, time: 0, loading: fx.loading, error: fx.error }}
+        onRefresh={() => loadRates(true)} manual={manualRate} onManual={setManual}
+        theme={theme} t={t} font={font} rtl={rtl} lang={lang} />
       <DealSheet visible={dealVisible} onClose={() => setDealVisible(false)} deal={form.deal}
         onChange={(deal) => setForm((f) => ({ ...f, deal }))} theme={theme} t={t} font={font} rtl={rtl} />
       <RegionSheet visible={!!regionSheet} fromButton={regionSheet === 'button'} onSkip={() => setRegionSheet(null)}
@@ -1080,6 +1264,17 @@ const CalculatorScreen = () => {
             ) : null}
           </View>
         </View>
+
+        {/* Home-currency conversion */}
+        <Pressable onPress={() => { haptic.select(); setFxVisible(true); }}
+          style={({ pressed }) => [styles.fxBar, { flexDirection: row, backgroundColor: pressed ? theme.glassStrong : theme.glass, borderColor: theme.glassBorder }]}>
+          <Ionicons name="swap-horizontal" size={16} color={converted ? theme.save : theme.textSecondary} />
+          <Text numberOfLines={1} style={[styles.fxBarText, converted ? num(800) : font(700), { color: converted ? theme.text : theme.textSecondary, textAlign: align }]}>
+            {converted ? t.fxApprox(converted) : home && fxRate == null && rg.cur && home.cur !== rg.cur ? (fx.loading ? t.fxLoading : t.fxFailed) : t.fxPrompt}
+          </Text>
+          {converted ? <Text numberOfLines={1} style={[styles.fxBarRate, num(600), { color: theme.textSecondary }]}>{t.fxRate(rg.cur, fmtRate(fxRate), home.cur)}</Text> : null}
+          <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={theme.textMuted} />
+        </Pressable>
 
         {/* Fields */}
         <ScrollView
@@ -1217,7 +1412,7 @@ const styles = StyleSheet.create({
   resultTax: { fontSize: 13 },
 
   // Field list
-  list: { flex: 1, marginTop: 12 },
+  list: { flex: 1, marginTop: 8 },
   listContent: { paddingHorizontal: 16, paddingBottom: LIST_PAD },
   fieldRow: { minHeight: 60, paddingHorizontal: 16, alignItems: 'center', gap: 10 },
   dot: { width: 9, height: 9, borderRadius: 5 },
@@ -1272,6 +1467,11 @@ const styles = StyleSheet.create({
   regionName: { fontSize: 16 },
   regionMeta: { fontSize: 13, marginTop: 1 },
   textInput: { height: 52, borderRadius: 16, borderWidth: 1, paddingHorizontal: 16, fontSize: 17 },
+  fxBar: { marginHorizontal: 16, marginTop: 8, minHeight: 38, borderRadius: 19, borderWidth: 1, paddingHorizontal: 14, alignItems: 'center', gap: 8 },
+  fxBarText: { flex: 1, fontSize: 14 },
+  fxBarRate: { fontSize: 12, flexShrink: 1, maxWidth: '50%' },
+  fxRateText: { fontSize: 20 },
+  fxSource: { fontSize: 11, textAlign: 'center' },
   sheetTall: { maxHeight: '88%' },
 
   // Sheets
