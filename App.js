@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet, Text, View, Pressable, ScrollView, StatusBar, Platform, TextInput, KeyboardAvoidingView,
+  BackHandler, LayoutAnimation, UIManager,
   useColorScheme, useWindowDimensions, Dimensions, Modal, Alert, ActivityIndicator, Animated, I18nManager, AccessibilityInfo, Easing,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,6 +27,9 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 I18nManager.allowRTL(false);
 I18nManager.forceRTL(false);
 const SYSTEM_RTL = I18nManager.isRTL === true; // undefined on web
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) UIManager.setLayoutAnimationEnabledExperimental(true);
+// Keypad slides up and down instead of jumping.
+const animateKeypad = () => LayoutAnimation.configureNext(LayoutAnimation.create(200, 'easeInEaseOut', 'opacity'));
 const flow = (rtl) => ((rtl !== SYSTEM_RTL) ? 'row-reverse' : 'row');
 
 // ─── Countries and currencies (data/regions.js) ───────────────────────────────
@@ -122,7 +126,7 @@ const translations = {
     simple: 'Simple', stacked: 'Stacked',
     price: 'Price', discount: 'Discount',
     discountN: (n) => (n === 1 ? 'First discount' : 'Second discount'),
-    coupon: (n) => `Coupon ${n}`, addCoupon: 'Add coupon', tax: 'VAT / tax',
+    coupon: (n) => `Coupon ${n}`, addCoupon: 'Add coupon or voucher', tax: 'VAT / tax',
     pctOrAmt: (s) => `Tap % or ${s} to switch`, amt: 'Amt',
     deal: 'Multi-buy deal', dealAdd: 'Add a deal',
     dealTypes: { none: 'No deal', free: 'Buy X get Y free', pct: 'Buy X get Y % off', bundle: 'X for a price', bulk: 'Buy more, save %', spend: 'Spend & save' },
@@ -141,6 +145,10 @@ const translations = {
     fxToday: "TODAY'S RATE", fxConfirm: 'Use this rate', fxInUse: 'In use', fxChange: 'Change',
     fxOwnTitle: 'OR ENTER YOUR OWN RATE (E.G. FROM YOUR BANK)', fxUseOwn: 'Use my rate', fxUpdateOwn: 'Update my rate',
     fxTurnOff: 'Turn off conversion', fxConfirmPrompt: (c) => `Confirm the ${c} rate`,
+    hideKeypad: 'Hide keypad', tapToEdit: 'Tap a row to enter a value',
+    couponHint: (s) => `Extra code or voucher, taken off after the discount. Tap % or ${s}`,
+    vatSaveDefault: (v) => `Save ${v}% as default VAT`, vatSaved: 'Default VAT saved',
+    vatEdit: 'VAT rate (%) — edit if it’s not right',
     dealFree: (b, g) => `Buy ${b} get ${g} free`,
     dealPct: (b, g, p) => `Buy ${b}, get ${g} at ${p}% off`,
     buy: 'Buy', get: 'Get', dealOff: 'Discount on those', dealHint: 'The price you enter is for one item.',
@@ -189,7 +197,7 @@ const translations = {
     simple: 'بسيط', stacked: 'خصم مركب',
     price: 'السعر', discount: 'الخصم',
     discountN: (n) => (n === 1 ? 'الخصم الأول' : 'الخصم الثاني'),
-    coupon: (n) => `كوبون ${n}`, addCoupon: 'إضافة كوبون', tax: 'الضريبة',
+    coupon: (n) => `كوبون ${n}`, addCoupon: 'إضافة كوبون أو قسيمة', tax: 'الضريبة',
     pctOrAmt: (s) => `اضغط % أو ${s} للتبديل`, amt: 'مبلغ',
     deal: 'عرض الشراء المتعدد', dealAdd: 'إضافة عرض',
     dealTypes: { none: 'بدون عرض', free: 'اشترِ واحصل مجاناً', pct: 'اشترِ واحصل بخصم %', bundle: 'عدد بسعر', bulk: 'اشترِ أكثر ووفّر %', spend: 'أنفق ووفّر' },
@@ -208,6 +216,10 @@ const translations = {
     fxToday: 'سعر اليوم', fxConfirm: 'استخدام هذا السعر', fxInUse: 'مستخدم', fxChange: 'تغيير',
     fxOwnTitle: 'أو أدخل سعرك الخاص (مثلاً من بنكك)', fxUseOwn: 'استخدام سعري', fxUpdateOwn: 'تحديث سعري',
     fxTurnOff: 'إيقاف التحويل', fxConfirmPrompt: (c) => `أكّد سعر ${c}`,
+    hideKeypad: 'إخفاء لوحة الأرقام', tapToEdit: 'اضغط على خانة لإدخال قيمة',
+    couponHint: (s) => `كود أو قسيمة إضافية تُخصم بعد الخصم. اضغط % أو ${s}`,
+    vatSaveDefault: (v) => `حفظ \u200E${v}%\u200F كضريبة افتراضية`, vatSaved: 'تم حفظ الضريبة الافتراضية',
+    vatEdit: 'نسبة الضريبة (%) — عدّلها إن لم تكن صحيحة',
     dealFree: (b, g) => `اشترِ ${b} واحصل على ${g} مجاناً`,
     dealPct: (b, g, p) => `اشترِ ${b} واحصل على ${g} بخصم ${p}%`,
     buy: 'اشترِ', get: 'احصل على', dealOff: 'الخصم عليها', dealHint: 'السعر الذي تدخله لقطعة واحدة.',
@@ -913,7 +925,15 @@ const RegionSheet = ({ visible, fromButton, onSkip, onApply, theme, t, font, rtl
   const [query, setQuery] = useState('');
   const [code, setCode] = useState('');
   const [vat, setVat] = useState('');
+  const [vatEdit, setVatEdit] = useState('');
   useEffect(() => { if (visible) { setStep('pick'); setPending(null); setQuery(''); } }, [visible]);
+  useEffect(() => { if (pending) setVatEdit(pending.vat === null || pending.vat === undefined ? '' : String(pending.vat)); }, [pending]);
+  // The shopper can correct the VAT before saving the country.
+  const withVat = (r) => {
+    const txt = vatEdit.replace(',', '.').trim();
+    if (txt === '') return { ...r, vat: r.vat === null ? null : 0 };
+    return { ...r, vat: Math.round(Math.min(parseNum(txt), 100) * 100) / 100 };
+  };
   const align = rtl ? 'right' : 'left';
   const noteText = (c) => (c.note === 'varies' ? t.noteVaries : c.note === 'state' ? t.noteState : '');
   const pick = (r) => { haptic.select(); setPending(r); setStep('confirm'); };
@@ -993,11 +1013,18 @@ const RegionSheet = ({ visible, fromButton, onSkip, onApply, theme, t, font, rtl
               <Text style={[styles.regionMeta, font(600), { color: theme.textSecondary }]}>
                 {`${pending.cur || '—'} · ${t.vatLabel(pending.vat)}`}
               </Text>
-              {pending.vat === null && <Text style={[styles.regionMeta, font(600), { color: theme.save, textAlign: 'center' }]}>{t.vatUnknown}</Text>}
             </View>
+            <Text style={[styles.sectionLabel, font(700), { color: theme.textSecondary, textAlign: align }]}>{t.vatEdit}</Text>
+            <View style={[styles.amountBox, { flexDirection: flow(false), backgroundColor: theme.glass, height: 52 }]}>
+              <TextInput value={vatEdit} onChangeText={(v) => setVatEdit(v.replace(/[^0-9.,]/g, '').slice(0, 5))} keyboardType="decimal-pad"
+                placeholder={pending.vat === null ? '—' : '0'} placeholderTextColor={theme.textMuted}
+                style={[styles.amountInput, num(800), { color: theme.text, textAlign: 'center' }]} />
+              <Text style={[styles.amountSym, num(800), { color: theme.textSecondary }]}>%</Text>
+            </View>
+            {pending.vat === null && vatEdit === '' && <Text style={[styles.regionMeta, font(600), { color: theme.save, textAlign: 'center' }]}>{t.vatUnknown}</Text>}
             <Text style={[styles.sheetSub, font(400), { color: theme.textSecondary }]}>{t.confirmSub}</Text>
-            <Btn label={t.saveDefault} onPress={() => onApply(pending, true)} primary />
-            <Btn label={t.justOnce} onPress={() => onApply(pending, false)} />
+            <Btn label={t.saveDefault} onPress={() => onApply(withVat(pending), true)} primary />
+            <Btn label={t.justOnce} onPress={() => onApply(withVat(pending), false)} />
             <Pressable onPress={() => setStep('pick')} style={styles.sheetGhost}>
               <Text style={[styles.sheetBtnText, font(600), { color: theme.textSecondary }]}>{t.back}</Text>
             </Pressable>
@@ -1182,6 +1209,7 @@ const CalculatorScreen = () => {
   const [dealVisible, setDealVisible] = useState(false);
   const [undoForm, setUndoForm] = useState(null);
   const [trayH, setTrayH] = useState(0);
+  const [keypadOpen, setKeypadOpen] = useState(false);
   const [home, setHome] = useState(null);           // { cur, sym, dec } or null
   const [fxManual, setFxManual] = useState({});      // { 'AED>EUR': 0.25 }
   const [fxConfirmed, setFxConfirmed] = useState({}); // { 'AED>EUR': true } once the shopper accepts the live rate
@@ -1372,7 +1400,25 @@ const CalculatorScreen = () => {
     return { type, value };
   });
 
-  const selectField = (key) => { if (key !== selected) haptic.select(); setSelected(key); };
+  const openKeypad = () => { if (!keypadOpen) { animateKeypad(); setKeypadOpen(true); } };
+  const closeKeypad = () => { if (keypadOpen) { haptic.select(); animateKeypad(); setKeypadOpen(false); } };
+  const selectField = (key) => { if (key !== selected || !keypadOpen) haptic.select(); setSelected(key); openKeypad(); };
+  // Android Back closes the keypad first.
+  useEffect(() => {
+    if (!keypadOpen) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { closeKeypad(); return true; });
+    return () => sub.remove();
+  }, [keypadOpen]);
+
+  // Correcting the VAT row can update the country's default rate.
+  const taxDiffers = rg.cur && parseNum(form.tax) !== (rg.vat || 0) && form.tax !== '';
+  const saveVatDefault = () => {
+    const v = Math.round(Math.min(parseNum(form.tax), 100) * 100) / 100;
+    haptic.tap();
+    const next = { ...rg, vat: v };
+    setRegion(next);
+    if (regionSaved) persist('region', JSON.stringify(next));
+  };
 
   const pressKey = (key) => {
     if (key === 'next') {
@@ -1391,6 +1437,7 @@ const CalculatorScreen = () => {
     const id = nextId.current++;
     setForm((f) => ({ ...f, coupons: [...f.coupons, { id, value: '', type: 'pct' }] }));
     setSelected(`c${id}`);
+    openKeypad();
   };
   const removeCoupon = (id) => { haptic.tap(); setForm((f) => ({ ...f, coupons: f.coupons.filter((c) => c.id !== id) })); };
   // Reset keeps the country's VAT and offers an Undo for a few seconds.
@@ -1563,10 +1610,10 @@ const CalculatorScreen = () => {
                 )}
                 <View onLayout={(e) => { heights.current[f.key] = e.nativeEvent.layout.height; }}>
                   <FieldRow
-                    field={f} active={f.key === current.key} last={f.key === lastFieldKey} theme={theme} rtl={rtl} t={t} font={font}
+                    field={f} active={keypadOpen && f.key === current.key} last={f.key === lastFieldKey} theme={theme} rtl={rtl} t={t} font={font}
                     sym={rg.sym} amtShort={amtShort}
                     onPress={() => selectField(f.key)}
-                    onToggleType={() => { haptic.select(); setSelected(f.key); toggleType(f.key); }}
+                    onToggleType={() => { haptic.select(); setSelected(f.key); openKeypad(); toggleType(f.key); }}
                     onScan={f.kind === 'price' ? () => setScanVisible(true) : null}
                     onRemove={f.kind === 'coupon' ? () => removeCoupon(f.id) : null}
                   />
@@ -1589,17 +1636,26 @@ const CalculatorScreen = () => {
 
         {/* Keypad tray */}
         {undoForm && (
-          <View style={[styles.snackbar, { bottom: trayH + 10, flexDirection: row, backgroundColor: theme.solid }]}>
+          <View style={[styles.snackbar, { bottom: (keypadOpen ? trayH : insets.bottom) + 10, flexDirection: row, backgroundColor: theme.solid }]}>
             <Text style={[styles.snackText, font(600), { color: theme.onSolid, textAlign: align }]}>{t.cleared}</Text>
             <Pressable onPress={undoReset} hitSlop={10}>
               <Text style={[styles.snackAction, font(800), { color: theme.dark ? '#5B4FE0' : '#B9FFE9' }]}>{t.undo}</Text>
             </Pressable>
           </View>
         )}
+        {keypadOpen && (
         <View onLayout={(e) => setTrayH(e.nativeEvent.layout.height)}
           style={[styles.tray, { backgroundColor: theme.tray, borderColor: theme.glassBorder, paddingBottom: Math.max(insets.bottom, 10) }]}>
-          <View style={styles.chipBar}>
-            {presets ? (
+          <View style={[styles.chipBar, { flexDirection: row }]}>
+            <View style={{ flex: 1, justifyContent: 'center' }}>
+            {current.kind === 'tax' && taxDiffers ? (
+              <Pressable onPress={saveVatDefault} style={[styles.chip, { alignSelf: rtl ? 'flex-end' : 'flex-start', marginHorizontal: 12, flexDirection: flow(false), gap: 6, backgroundColor: theme.solid }]}>
+                <Ionicons name="bookmark-outline" size={14} color={theme.onSolid} />
+                <Text style={[styles.chipText, font(700), { color: theme.onSolid }]}>{t.vatSaveDefault(trimNum(Math.min(parseNum(form.tax), 100)))}</Text>
+              </Pressable>
+            ) : current.kind === 'coupon' && current.type === 'amt' ? (
+              <Text numberOfLines={2} style={[styles.chipHint, font(600), { color: theme.textSecondary, paddingHorizontal: 12 }]}>{t.couponHint(amtShort)}</Text>
+            ) : presets ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled"
                 contentContainerStyle={[styles.chipInner, { flexDirection: row }]}>
                 {presets.map((n) => {
@@ -1615,6 +1671,11 @@ const CalculatorScreen = () => {
             ) : (
               <Text style={[styles.chipHint, font(600), { color: theme.textSecondary }]}>{current.adjustable ? t.pctOrAmt(amtShort) : t.priceHint}</Text>
             )}
+            </View>
+            <Pressable onPress={closeKeypad} hitSlop={8} accessibilityLabel={t.hideKeypad}
+              style={({ pressed }) => [styles.hideBtn, { backgroundColor: pressed ? theme.glassStrong : theme.glass }]}>
+              <Ionicons name="chevron-down" size={20} color={theme.text} />
+            </Pressable>
           </View>
           <View style={styles.keypad}>
             <View style={styles.keyRow}>
@@ -1636,6 +1697,12 @@ const CalculatorScreen = () => {
             </View>
           </View>
         </View>
+        )}
+        {!keypadOpen && (
+          <View style={[styles.tapHintWrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+            <Text style={[styles.chipHint, font(600), { color: theme.textMuted }]}>{t.tapToEdit}</Text>
+          </View>
+        )}
       </View>
       {showWelcome && <Welcome t={t} font={font} onDone={() => { setShowWelcome(false); if (!regionSaved) setRegionSheet('first'); }} />}
     </View>
@@ -1683,6 +1750,8 @@ const styles = StyleSheet.create({
   // Field list
   list: { flex: 1, marginTop: 8 },
   listContent: { paddingHorizontal: 16, paddingBottom: LIST_PAD },
+  tapHintWrap: { paddingTop: 6, alignItems: 'center' },
+  hideBtn: { width: 40, height: 34, borderRadius: 12, marginHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
   fieldRow: { minHeight: 60, paddingHorizontal: 16, alignItems: 'center', gap: 10 },
   dot: { width: 9, height: 9, borderRadius: 5 },
   fieldLabel: { flex: 1, fontSize: 16 },
