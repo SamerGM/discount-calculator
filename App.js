@@ -126,7 +126,7 @@ const translations = {
     price: 'Price', discount: 'Discount',
     tax: 'VAT / tax',
     pctOrAmt: (s) => `Tap % or ${s} to switch`, amt: 'Amt',
-    deal: 'Offer', dealAdd: 'Add an offer', dealAddShort: 'e.g. buy 1 get 1',
+    deal: 'Set the offer criteria', dealAdd: 'Add an offer', dealAddShort: 'e.g. buy 1 get 1',
     dealTypes: { none: 'No offer', free: 'Get items free', pct: 'Extra item discount', bundle: 'Group price', bulk: 'Buy more, pay less', spend: 'Spend & save' },
     dealExample: { none: 'Pay the normal price for one item.', free: 'Example: buy 2, get 1 free', pct: 'Example: buy 1, get the 2nd at 50% off', bundle: 'Example: 3 for AED 100', bulk: 'Example: buy 3 or more, 20% off all', spend: 'Example: spend AED 200, save AED 50' },
     dealQuick: 'POPULAR OFFERS', dealKind: 'SET THE OFFER CRITERIA', getFree: 'You get free', getDisc: 'Discounted items',
@@ -195,7 +195,7 @@ const translations = {
     price: 'السعر', discount: 'الخصم',
     tax: 'الضريبة',
     pctOrAmt: (s) => `اضغط % أو ${s} للتبديل`, amt: 'مبلغ',
-    deal: 'عرض', dealAdd: 'إضافة عرض', dealAddShort: 'مثل: اشترِ 1 واحصل على 1',
+    deal: 'حدد تفاصيل العرض', dealAdd: 'إضافة عرض', dealAddShort: 'مثل: اشترِ 1 واحصل على 1',
     dealTypes: { none: 'بدون عرض', free: 'احصل على قطع مجاناً', pct: 'خصم على القطعة الإضافية', bundle: 'سعر المجموعة', bulk: 'اشترِ أكثر وادفع أقل', spend: 'أنفق ووفّر' },
     dealExample: { none: 'ادفع السعر العادي لقطعة واحدة.', free: 'مثال: اشترِ 2 واحصل على 1 مجاناً', pct: 'مثال: اشترِ 1 والثانية بخصم 50%', bundle: 'مثال: 3 قطع بـ 100 درهم', bulk: 'مثال: اشترِ 3 أو أكثر بخصم 20% على الكل', spend: 'مثال: أنفق 200 درهم ووفّر 50' },
     dealQuick: 'العروض الشائعة', dealKind: 'حدد تفاصيل العرض', getFree: 'تحصل مجاناً على', getDisc: 'القطع المخفّضة',
@@ -813,7 +813,6 @@ const DealSheet = ({ visible, onClose, deal, onChange, theme, t, font, rtl, mone
             ))}
           </ScrollView>
 
-          <Text style={[styles.sectionLabel, font(700), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.dealKind}</Text>
           <View style={[styles.chipInner, { flexDirection: flow(rtl), paddingHorizontal: 0, flexWrap: 'wrap' }]}>
             {DEAL_TYPES.map((v) => {
               const on = deal.type === v;
@@ -1583,7 +1582,6 @@ const CalculatorScreen = () => {
                     <Text numberOfLines={1} style={[styles.fieldLabel, font(700), { color: form.deal.type === 'none' ? theme.textSecondary : theme.save, textAlign: align }]}>
                       {form.deal.type === 'none' ? t.deal : dealText(form.deal, t, money)}
                     </Text>
-                    {form.deal.type === 'none' && <Text style={[styles.rowHint, font(600), { color: theme.textMuted }]}>{t.dealAddShort}</Text>}
                     <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={17} color={theme.textMuted} />
                   </Pressable>
                 )}
