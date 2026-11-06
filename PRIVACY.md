@@ -2,7 +2,7 @@
 
 _Last updated: 6 November 2026_
 
-Easy Shopping Calculator ("the app") is a calculator for discounts, coupons, multi-buy deals and VAT. This policy explains what happens to your information when you use it.
+Easy Shopping Calculator ("the app") is a calculator for discounts, multi-buy deals, VAT and currency conversion. This policy explains what happens to your information when you use it.
 
 ## Summary
 
@@ -17,7 +17,7 @@ The app saves the following on your phone only, so it is still there the next ti
 
 | What | Why |
 |---|---|
-| The values you enter (price, discounts, coupons, deal, VAT) | So your calculation survives the app being closed |
+| The values you enter (price, discounts, deal, VAT) | So your calculation survives the app being closed |
 | Your chosen country, currency and VAT rate (if you save it) | So you are not asked again |
 | Language, light/dark theme and Simple/Stacked mode | To remember your preferences |
 | Your home currency, any exchange rate you enter, and the last downloaded rates | To convert prices, also when you are offline |
