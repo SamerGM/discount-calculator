@@ -144,7 +144,7 @@ const translations = {
     fxToday: "TODAY'S RATE", fxConfirm: 'Use this rate', fxInUse: 'In use', fxChange: 'Change',
     fxOwnTitle: 'OR ENTER YOUR OWN RATE (E.G. FROM YOUR BANK)', fxUseOwn: 'Use my rate', fxUpdateOwn: 'Update my rate',
     fxTurnOff: 'Turn off conversion', fxConfirmPrompt: (c) => `Confirm the ${c} rate`,
-    fxInHome: (c) => `IN YOUR CURRENCY (${c})`, fxInHomeEmpty: 'SHOPPING ABROAD?', fxPromptCard: 'See this price in your own currency', fxSetUp: 'Set up', fxConfirmShort: 'Confirm',
+    fxInHome: () => 'IN YOUR HOME CURRENCY', fxInHomeEmpty: 'IN YOUR HOME CURRENCY', fxPromptCard: 'Tap here to convert and see how much it is in your home currency', fxSetUp: 'Set up', fxConfirmShort: 'Confirm',
     hideKeypad: 'Hide keypad', tapToEdit: 'Tap a row to enter a value',
     vatSaveDefault: (v) => `Save ${v}% as default VAT`, vatSaved: 'Default VAT saved',
     vatEdit: 'VAT rate (%) — edit if it’s not right',
@@ -213,7 +213,7 @@ const translations = {
     fxToday: 'سعر اليوم', fxConfirm: 'استخدام هذا السعر', fxInUse: 'مستخدم', fxChange: 'تغيير',
     fxOwnTitle: 'أو أدخل سعرك الخاص (مثلاً من بنكك)', fxUseOwn: 'استخدام سعري', fxUpdateOwn: 'تحديث سعري',
     fxTurnOff: 'إيقاف التحويل', fxConfirmPrompt: (c) => `أكّد سعر ${c}`,
-    fxInHome: (c) => `بعملتك (${c})`, fxInHomeEmpty: 'تتسوق في الخارج؟', fxPromptCard: 'اعرف هذا السعر بعملتك', fxSetUp: 'إعداد', fxConfirmShort: 'تأكيد',
+    fxInHome: () => 'بعملة بلدك', fxInHomeEmpty: 'بعملة بلدك', fxPromptCard: 'اضغط هنا للتحويل ومعرفة السعر بعملة بلدك', fxSetUp: 'إعداد', fxConfirmShort: 'تأكيد',
     hideKeypad: 'إخفاء لوحة الأرقام', tapToEdit: 'اضغط على خانة لإدخال قيمة',
     vatSaveDefault: (v) => `حفظ \u200E${v}%\u200F كضريبة افتراضية`, vatSaved: 'تم حفظ الضريبة الافتراضية',
     vatEdit: 'نسبة الضريبة (%) — عدّلها إن لم تكن صحيحة',
@@ -1172,9 +1172,6 @@ const restoreForm = (raw) => {
   };
 };
 const UNDO_MS = 5000;
-// Home-currency layout: 'card' (own card under the price), 'inline' (inside the price
-// card), 'bar' (slim bar). The web preview can pick one with ?fx=… to compare.
-const FX_STYLE = (Platform.OS === 'web' && typeof location !== 'undefined' && new URLSearchParams(location.search).get('fx')) || 'card';
 // Big total: smaller type for long amounts so it and the old price fit one line.
 const heroSize = (len, compact) => Math.round((len > 12 ? 32 : len > 9 ? 38 : 46) * (compact ? 0.85 : 1));
 
@@ -1456,7 +1453,7 @@ const CalculatorScreen = () => {
   const openFx = () => { haptic.select(); setFxVisible(true); };
   const fxStatus = needsConfirm ? t.fxConfirmPrompt(home.cur) : pairReady && fxRate == null ? (fx.loading ? t.fxLoading : t.fxFailed) : null;
   const fxRateLine = converted ? t.fxRate(rg.cur, fmtRate(fxRate), home.cur) : '';
-  // Option 1: its own card. Home currency code badge, the converted price large, the rate below.
+  // Home-currency card: currency badge, the converted price large, the rate below.
   const fxCard = (
     <Pressable onPress={openFx} style={({ pressed }) => [styles.glassCard, styles.fxCard, { flexDirection: row, backgroundColor: pressed ? theme.glassStrong : theme.glass, borderColor: theme.glassBorder }]}>
       <View style={[styles.fxBadge, { backgroundColor: converted ? theme.solid : theme.glassStrong }]}>
@@ -1468,28 +1465,13 @@ const CalculatorScreen = () => {
         {converted ? (
           <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.fxCardValue, num(800), { color: theme.text, textAlign: align }]}>{t.fxApprox(converted)}</Text>
         ) : (
-          <Text numberOfLines={2} style={[styles.fxCardHint, font(700), { color: fxStatus ? theme.save : theme.text, textAlign: align }]}>{fxStatus || t.fxPromptCard}</Text>
+          <Text numberOfLines={3} style={[styles.fxCardHint, font(700), { color: fxStatus ? theme.save : theme.text, textAlign: align }]}>{fxStatus || t.fxPromptCard}</Text>
         )}
         {!!converted && <Text numberOfLines={1} style={[styles.fxCardRate, num(600), { color: theme.textSecondary, textAlign: align }]}>{fxRateLine}</Text>}
       </View>
       <View style={[styles.pill, { backgroundColor: theme.glassStrong }]}>
         <Text style={[styles.pillText, font(700), { color: theme.text }]}>{!home ? t.fxSetUp : needsConfirm ? t.fxConfirmShort : t.fxChange}</Text>
       </View>
-    </Pressable>
-  );
-  // Option 2: a line at the bottom of the price card.
-  const fxInline = (
-    <Pressable onPress={openFx} style={({ pressed }) => [styles.fxInline, { flexDirection: row, borderTopColor: theme.separator, opacity: pressed ? 0.7 : 1 }]}>
-      <Ionicons name="swap-horizontal" size={16} color={converted ? theme.save : theme.textSecondary} />
-      {converted ? (
-        <>
-          <Text numberOfLines={1} style={[styles.fxInlineValue, num(800), { color: theme.save }]}>{t.fxApprox(converted)}</Text>
-          <Text numberOfLines={1} style={[styles.fxBarRate, num(600), { color: theme.textSecondary, flex: 1, textAlign: rtl ? 'left' : 'right' }]}>{fxRateLine}</Text>
-        </>
-      ) : (
-        <Text numberOfLines={1} style={[styles.fxBarText, font(700), { color: fxStatus ? theme.save : theme.textSecondary, textAlign: align }]}>{fxStatus || t.fxPrompt}</Text>
-      )}
-      <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={theme.textMuted} />
     </Pressable>
   );
   const glassCard = { backgroundColor: theme.glass, borderColor: theme.glassBorder };
@@ -1571,22 +1553,9 @@ const CalculatorScreen = () => {
               <Text style={[styles.resultTax, font(600), { color: theme.textSecondary }]}>{t.inclTax(money(result.tax))}</Text>
             ) : null}
           </View>
-          {FX_STYLE === 'inline' && fxInline}
         </View>
 
-        {FX_STYLE === 'card' && fxCard}
-        {FX_STYLE === 'bar' && (
-        <Pressable onPress={() => { haptic.select(); setFxVisible(true); }}
-          style={({ pressed }) => [styles.fxBar, { flexDirection: row, backgroundColor: pressed ? theme.glassStrong : theme.glass, borderColor: theme.glassBorder }]}>
-          <Ionicons name="swap-horizontal" size={16} color={converted ? theme.save : theme.textSecondary} />
-          <Text numberOfLines={1} style={[styles.fxBarText, converted ? num(800) : font(700), { color: converted ? theme.text : theme.textSecondary, textAlign: align }]}>
-            {converted ? t.fxApprox(converted) : needsConfirm ? t.fxConfirmPrompt(home.cur) : pairReady && fxRate == null ? (fx.loading ? t.fxLoading : t.fxFailed) : t.fxPrompt}
-          </Text>
-          {converted ? <Text numberOfLines={1} style={[styles.fxBarRate, num(600), { color: theme.textSecondary }]}>{t.fxRate(rg.cur, fmtRate(fxRate), home.cur)}</Text> : null}
-          <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={theme.textMuted} />
-        </Pressable>
-
-        )}
+        {fxCard}
 
         {/* Fields */}
         <ScrollView
@@ -1797,15 +1766,10 @@ const styles = StyleSheet.create({
   fxBadgeText: { fontSize: 13 },
   fxCardLabel: { fontSize: 11, letterSpacing: 1 },
   fxCardValue: { fontSize: 26, letterSpacing: -0.5 },
-  fxCardHint: { fontSize: 15 },
+  fxCardHint: { fontSize: 14, lineHeight: 19 },
   fxCardRate: { fontSize: 12 },
-  fxInline: { marginTop: 10, paddingTop: 10, borderTopWidth: HAIRLINE, alignItems: 'center', gap: 8 },
-  fxInlineValue: { fontSize: 18 },
   dealExample: { fontSize: 13 },
   rowHint: { fontSize: 13 },
-  fxBar: { marginHorizontal: 16, marginTop: 8, minHeight: 38, borderRadius: 19, borderWidth: 1, paddingHorizontal: 14, alignItems: 'center', gap: 8 },
-  fxBarText: { flex: 1, fontSize: 14 },
-  fxBarRate: { fontSize: 12, flexShrink: 1, maxWidth: '50%' },
   fxRateText: { fontSize: 20 },
   fxSource: { fontSize: 11, textAlign: 'center' },
   searchBox: { height: 48, borderRadius: 16, borderWidth: 1, paddingHorizontal: 14, alignItems: 'center', gap: 8 },
