@@ -14,6 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { extractTextFromImage, isSupported as ocrSupported } from 'expo-text-extractor';
 import { Ionicons } from '@expo/vector-icons';
+import { COUNTRY_LIST, CURRENCY_LIST, POPULAR_COUNTRIES, POPULAR_CURRENCIES } from './data/regions';
 
 // The app lays out Arabic itself (row-reverse + right-aligned text). If the phone's
 // system language is RTL, Android would mirror everything a second time, flipping
@@ -27,28 +28,42 @@ I18nManager.forceRTL(false);
 const SYSTEM_RTL = I18nManager.isRTL === true; // undefined on web
 const flow = (rtl) => ((rtl !== SYSTEM_RTL) ? 'row-reverse' : 'row');
 
-// ─── Countries: currency and default VAT / sales tax ──────────────────────────
-// vat = standard rate added on top by default; the shopper can edit or clear it.
-const COUNTRIES = [
-  { id: 'AE', en: 'United Arab Emirates', ar: 'الإمارات', cur: 'AED', sym: 'AED', dec: 2, vat: 5 },
-  { id: 'SA', en: 'Saudi Arabia', ar: 'السعودية', cur: 'SAR', sym: 'SAR', dec: 2, vat: 15 },
-  { id: 'QA', en: 'Qatar', ar: 'قطر', cur: 'QAR', sym: 'QAR', dec: 2, vat: 0 },
-  { id: 'KW', en: 'Kuwait', ar: 'الكويت', cur: 'KWD', sym: 'KWD', dec: 3, vat: 0 },
-  { id: 'BH', en: 'Bahrain', ar: 'البحرين', cur: 'BHD', sym: 'BHD', dec: 3, vat: 10 },
-  { id: 'OM', en: 'Oman', ar: 'عُمان', cur: 'OMR', sym: 'OMR', dec: 3, vat: 5 },
-  { id: 'EG', en: 'Egypt', ar: 'مصر', cur: 'EGP', sym: 'EGP', dec: 2, vat: 14 },
-  { id: 'JO', en: 'Jordan', ar: 'الأردن', cur: 'JOD', sym: 'JOD', dec: 3, vat: 16 },
-  { id: 'LB', en: 'Lebanon', ar: 'لبنان', cur: 'LBP', sym: 'LBP', dec: 0, vat: 11 },
-  { id: 'MA', en: 'Morocco', ar: 'المغرب', cur: 'MAD', sym: 'MAD', dec: 2, vat: 20 },
-  { id: 'IQ', en: 'Iraq', ar: 'العراق', cur: 'IQD', sym: 'IQD', dec: 0, vat: 0 },
-  { id: 'GB', en: 'United Kingdom', ar: 'المملكة المتحدة', cur: 'GBP', sym: '£', dec: 2, vat: 20 },
-  { id: 'EU', en: 'Eurozone', ar: 'منطقة اليورو', cur: 'EUR', sym: '€', dec: 2, vat: 20, note: 'varies' },
-  { id: 'TR', en: 'Turkey', ar: 'تركيا', cur: 'TRY', sym: '₺', dec: 2, vat: 20 },
-  { id: 'US', en: 'United States', ar: 'الولايات المتحدة', cur: 'USD', sym: '$', dec: 2, vat: 0, note: 'state' },
-  { id: 'IN', en: 'India', ar: 'الهند', cur: 'INR', sym: '₹', dec: 2, vat: 18, note: 'varies' },
-];
-// Home currencies offered for conversion (one per currency in the country list).
-const CURRENCIES = COUNTRIES.map(({ cur, sym, dec, en, ar }) => ({ cur, sym, dec, en, ar }));
+// ─── Countries and currencies (data/regions.js) ───────────────────────────────
+const CURRENCY_BY_CODE = Object.fromEntries(CURRENCY_LIST.map((c) => [c.cur, c]));
+const COUNTRY_BY_ID = Object.fromEntries(COUNTRY_LIST.map((c) => [c.id, c]));
+// What the app stores for a picked country: names, currency format and VAT.
+const regionFromCountry = (c) => {
+  const k = CURRENCY_BY_CODE[c.cur] || { sym: c.cur, dec: 2 };
+  return { id: c.id, en: c.en, ar: c.ar, cur: c.cur, sym: k.sym, dec: k.dec, vat: c.vat, note: c.note };
+};
+// Search that ignores case, Arabic diacritics and alef/yaa/taa-marbuta variants.
+const norm = (s) => (s || '').toLowerCase()
+  .replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').trim();
+const matches = (q, ...fields) => !q || fields.some((x) => norm(x).includes(q));
+const searchCountries = (query) => {
+  const q = norm(query);
+  if (!q) {
+    const top = POPULAR_COUNTRIES.map((id) => COUNTRY_BY_ID[id]).filter(Boolean);
+    return { popular: top, rest: COUNTRY_LIST.filter((c) => !POPULAR_COUNTRIES.includes(c.id)) };
+  }
+  const hits = COUNTRY_LIST.filter((c) => {
+    const k = CURRENCY_BY_CODE[c.cur];
+    return matches(q, c.en, c.ar, c.cur, c.id, c.alias, k && k.name);
+  });
+  return { popular: [], rest: hits };
+};
+const searchCurrencies = (query) => {
+  const q = norm(query);
+  const named = (c) => matches(q, c.cur, c.name, ...c.countries.flatMap((id) => {
+    const x = COUNTRY_BY_ID[id]; return x ? [x.en, x.ar, x.alias] : [];
+  }));
+  if (!q) {
+    const top = POPULAR_CURRENCIES.map((c) => CURRENCY_BY_CODE[c]).filter(Boolean);
+    return { popular: top, rest: CURRENCY_LIST.filter((c) => !POPULAR_CURRENCIES.includes(c.cur)) };
+  }
+  return { popular: [], rest: CURRENCY_LIST.filter(named) };
+};
+const currencyCountries = (c, lang) => c.countries.map((id) => COUNTRY_BY_ID[id] && COUNTRY_BY_ID[id][lang]).filter(Boolean);
 
 // Live exchange rates: free, no API key (https://www.exchangerate-api.com, open access,
 // updated daily). Only the currency code is sent. Cached for offline use.
@@ -71,7 +86,7 @@ const fmtDate = (ms, lang) => {
 };
 
 // Used until the shopper picks a country (or after Skip): plain numbers, no tax.
-const NO_REGION = { id: '', cur: '', sym: '', dec: 2, vat: 0 };
+const NO_REGION = { id: '', cur: '', sym: '', dec: 2, vat: null };
 
 // ─── Theme: frosted panels over an aurora gradient ────────────────────────────
 // The background is a static gradient, so translucent fills give the frosted look
@@ -110,7 +125,22 @@ const translations = {
     coupon: (n) => `Coupon ${n}`, addCoupon: 'Add coupon', tax: 'VAT / tax',
     pctOrAmt: (s) => `Tap % or ${s} to switch`, amt: 'Amt',
     deal: 'Multi-buy deal', dealAdd: 'Add a deal',
-    dealTypes: { none: 'No deal', free: 'Get free', pct: 'Get % off' },
+    dealTypes: { none: 'No deal', free: 'Buy X get Y free', pct: 'Buy X get Y % off', bundle: 'X for a price', bulk: 'Buy more, save %', spend: 'Spend & save' },
+    dealQuick: 'COMMON OFFERS', dealKind: 'OR SET IT UP',
+    dealTpl: { b1g1: 'Buy 1 get 1 free', second50: '2nd at 50% off', b2g1: 'Buy 2 get 1 free', b1g1_25: '2nd at 25% off', bundle3: '3 for a price', bulk3: 'Buy 3, save 20%', spend: 'Spend & save' },
+    dealSecond: (p) => `Buy 1, get the 2nd ${p}% off`,
+    dealBundle: (n, a) => `${n} for ${a}`, dealBundleSet: (n) => `${n} for … (enter the price)`,
+    dealBulk: (n, p) => `Buy ${n}+, save ${p}%`,
+    dealSpend: (min, off) => `Spend ${min}, save ${off}`, dealSpendSet: 'Spend & save (enter the amounts)',
+    dealItems: 'Items', dealFor: 'For', dealAtLeast: 'Buy at least', dealOffAll: 'Discount on all items',
+    dealSpendMin: 'Spend at least', dealSpendOff: 'You save',
+    spendShort: (a) => `Add ${a} more to unlock the deal`,
+    searchCountry: 'Search country or currency (e.g. AED)', searchCurrency: 'Search currency or country (e.g. USD)',
+    popular: 'POPULAR', allCountries: 'ALL COUNTRIES', allCurrencies: 'ALL CURRENCIES', noResults: 'No matches',
+    vatUnknown: 'We don’t have this country’s VAT rate. Enter it in the VAT row.',
+    fxToday: "TODAY'S RATE", fxConfirm: 'Use this rate', fxInUse: 'In use', fxChange: 'Change',
+    fxOwnTitle: 'OR ENTER YOUR OWN RATE (E.G. FROM YOUR BANK)', fxUseOwn: 'Use my rate', fxUpdateOwn: 'Update my rate',
+    fxTurnOff: 'Turn off conversion', fxConfirmPrompt: (c) => `Confirm the ${c} rate`,
     dealFree: (b, g) => `Buy ${b} get ${g} free`,
     dealPct: (b, g, p) => `Buy ${b}, get ${g} at ${p}% off`,
     buy: 'Buy', get: 'Get', dealOff: 'Discount on those', dealHint: 'The price you enter is for one item.',
@@ -118,7 +148,7 @@ const translations = {
     regionTitle: 'Where are you shopping?',
     regionSub: 'Sets the currency and the VAT rate. You can change it any time.',
     skip: 'Skip', other: 'Other (enter manually)',
-    vatLabel: (v) => (v > 0 ? `VAT ${v}%` : 'No VAT'),
+    vatLabel: (v) => (v === null || v === undefined ? 'VAT not set' : v > 0 ? `VAT ${v}%` : 'No VAT'),
     noteVaries: 'rate varies', noteState: 'add your state tax',
     confirmTitle: 'Save as your default?',
     confirmSub: "If you save it, we won't ask again. Change it any time with the currency button.",
@@ -162,7 +192,22 @@ const translations = {
     coupon: (n) => `كوبون ${n}`, addCoupon: 'إضافة كوبون', tax: 'الضريبة',
     pctOrAmt: (s) => `اضغط % أو ${s} للتبديل`, amt: 'مبلغ',
     deal: 'عرض الشراء المتعدد', dealAdd: 'إضافة عرض',
-    dealTypes: { none: 'بدون عرض', free: 'مجاناً', pct: 'بخصم %' },
+    dealTypes: { none: 'بدون عرض', free: 'اشترِ واحصل مجاناً', pct: 'اشترِ واحصل بخصم %', bundle: 'عدد بسعر', bulk: 'اشترِ أكثر ووفّر %', spend: 'أنفق ووفّر' },
+    dealQuick: 'عروض شائعة', dealKind: 'أو اضبطه بنفسك',
+    dealTpl: { b1g1: 'اشترِ 1 واحصل على 1 مجاناً', second50: 'الثانية بخصم 50%', b2g1: 'اشترِ 2 واحصل على 1 مجاناً', b1g1_25: 'الثانية بخصم 25%', bundle3: '3 بسعر', bulk3: 'اشترِ 3 ووفّر 20%', spend: 'أنفق ووفّر' },
+    dealSecond: (p) => `اشترِ 1 والثانية بخصم ${p}%`,
+    dealBundle: (n, a) => `${n} بسعر ‎${a}‏`, dealBundleSet: (n) => `${n} بسعر … (أدخل السعر)`,
+    dealBulk: (n, p) => `اشترِ ${n} أو أكثر ووفّر ${p}%`,
+    dealSpend: (min, off) => `أنفق ‎${min}‏ ووفّر ‎${off}‏`, dealSpendSet: 'أنفق ووفّر (أدخل المبالغ)',
+    dealItems: 'عدد القطع', dealFor: 'بسعر', dealAtLeast: 'اشترِ على الأقل', dealOffAll: 'الخصم على كل القطع',
+    dealSpendMin: 'أنفق على الأقل', dealSpendOff: 'توفّر',
+    spendShort: (a) => `أضف ‎${a}‏ للحصول على العرض`,
+    searchCountry: 'ابحث عن دولة أو عملة (مثل AED)', searchCurrency: 'ابحث عن عملة أو دولة (مثل USD)',
+    popular: 'الأكثر استخداماً', allCountries: 'كل الدول', allCurrencies: 'كل العملات', noResults: 'لا توجد نتائج',
+    vatUnknown: 'لا نعرف نسبة الضريبة لهذه الدولة. أدخلها في خانة الضريبة.',
+    fxToday: 'سعر اليوم', fxConfirm: 'استخدام هذا السعر', fxInUse: 'مستخدم', fxChange: 'تغيير',
+    fxOwnTitle: 'أو أدخل سعرك الخاص (مثلاً من بنكك)', fxUseOwn: 'استخدام سعري', fxUpdateOwn: 'تحديث سعري',
+    fxTurnOff: 'إيقاف التحويل', fxConfirmPrompt: (c) => `أكّد سعر ${c}`,
     dealFree: (b, g) => `اشترِ ${b} واحصل على ${g} مجاناً`,
     dealPct: (b, g, p) => `اشترِ ${b} واحصل على ${g} بخصم ${p}%`,
     buy: 'اشترِ', get: 'احصل على', dealOff: 'الخصم عليها', dealHint: 'السعر الذي تدخله لقطعة واحدة.',
@@ -170,7 +215,7 @@ const translations = {
     regionTitle: 'أين تتسوق؟',
     regionSub: 'يحدد العملة ونسبة الضريبة. يمكنك تغييره في أي وقت.',
     skip: 'تخطي', other: 'أخرى (إدخال يدوي)',
-    vatLabel: (v) => (v > 0 ? `ضريبة ${v}%` : 'بدون ضريبة'),
+    vatLabel: (v) => (v === null || v === undefined ? 'الضريبة غير محددة' : v > 0 ? `ضريبة \u200E${v}%\u200F` : 'بدون ضريبة'),
     noteVaries: 'النسبة تختلف', noteState: 'أضف ضريبة ولايتك',
     confirmTitle: 'حفظ كإعداد افتراضي؟',
     confirmSub: 'عند الحفظ لن نسألك مرة أخرى. يمكنك تغييره في أي وقت من زر العملة.',
@@ -247,20 +292,31 @@ const haptic = {
  * Each adjustment is { value, type: 'pct' | 'amt' }. A fixed amount can never
  * push the price below zero.
  */
+// Items a deal covers: buy + get, the bundle size, the bulk minimum, or the chosen count.
+const dealQty = (d) => {
+  if (!d) return 1;
+  if (d.type === 'free' || d.type === 'pct') return d.buy + d.get;
+  if (d.type === 'bundle' || d.type === 'spend') return d.n;
+  if (d.type === 'bulk') return d.min;
+  return 1;
+};
 const calculate = ({ price, discounts, coupons, tax, deal }) => {
   const unit = parseNum(price);
-  // Multi-buy deal: the price is per item; you take buy + get items and the
-  // "get" items are free or at a % off. Discounts and coupons then apply to the total.
+  // Multi-buy deals. The price entered is per item. Item deals (free / % off / bundle /
+  // bulk) apply first, then discounts and coupons, then "spend & save", then tax.
   const d = deal && deal.type !== 'none' ? deal : null;
-  const qty = d ? d.buy + d.get : 1;
+  const qty = dealQty(d);
   const p = unit * qty;
   let running = p;
   const steps = [];
+  let spendShort = 0;
   if (d && unit > 0) {
-    const share = d.type === 'free' ? 1 : Math.min(d.pct, 100) / 100;
-    const cut = unit * d.get * share;
-    running -= cut;
-    steps.push({ kind: 'deal', amount: -cut });
+    let cut = 0;
+    if (d.type === 'free') cut = unit * d.get;
+    else if (d.type === 'pct') cut = unit * d.get * Math.min(d.pct, 100) / 100;
+    else if (d.type === 'bundle') { const bp = parseNum(d.bundle); cut = bp > 0 ? Math.max(0, p - bp) : 0; }
+    else if (d.type === 'bulk') cut = p * Math.min(d.offPct, 100) / 100;
+    if (cut > 0) { running -= cut; steps.push({ kind: 'deal', amount: -cut }); }
   }
   const apply = (adj, kind, index) => {
     const v = parseNum(adj.value);
@@ -272,13 +328,20 @@ const calculate = ({ price, discounts, coupons, tax, deal }) => {
   };
   discounts.forEach((d, i) => apply(d, 'discount', i));
   coupons.forEach((c, i) => apply(c, 'coupon', i));
+  if (d && d.type === 'spend' && unit > 0) {
+    const min = parseNum(d.spend); const off = parseNum(d.spendOff);
+    if (off > 0 && running >= min) {
+      const cut = d.spendType === 'pct' ? running * Math.min(off, 100) / 100 : Math.min(off, running);
+      running -= cut; steps.push({ kind: 'deal', amount: -cut });
+    } else if (off > 0) spendShort = min - running;
+  }
   const tv = parseNum(tax);
   const taxAmount = running * tv / 100;
   if (tv > 0) steps.push({ kind: 'tax', type: 'pct', value: tv, amount: taxAmount });
   const savings = p - running;
   const final = running + taxAmount;
   return {
-    unit, qty, original: p, subtotal: running, tax: taxAmount, final, perItem: final / qty,
+    unit, qty, original: p, subtotal: running, tax: taxAmount, final, perItem: final / qty, spendShort,
     savings, savingsPct: p > 0 ? (savings / p) * 100 : 0, steps,
   };
 };
@@ -653,14 +716,43 @@ const Key = ({ label, icon, onPress, onLongPress, theme, height, variant = 'digi
 };
 
 // ─── Multi-buy deal ───────────────────────────────────────────────────────────
-const DEFAULT_DEAL = { type: 'none', buy: 1, get: 1, pct: 50 };
-const dealText = (d, t) => (d.type === 'free' ? t.dealFree(d.buy, d.get) : d.type === 'pct' ? t.dealPct(d.buy, d.get, d.pct) : t.dealAdd);
+const DEFAULT_DEAL = { type: 'none', buy: 1, get: 1, pct: 50, n: 3, bundle: '', min: 3, offPct: 20, spend: '', spendOff: '', spendType: 'amt' };
+const DEAL_TYPES = ['none', 'free', 'pct', 'bundle', 'bulk', 'spend'];
+// One-tap versions of the most common shop offers.
+const DEAL_TEMPLATES = [
+  { key: 'b1g1', deal: { type: 'free', buy: 1, get: 1 } },
+  { key: 'second50', deal: { type: 'pct', buy: 1, get: 1, pct: 50 } },
+  { key: 'b2g1', deal: { type: 'free', buy: 2, get: 1 } },
+  { key: 'b1g1_25', deal: { type: 'pct', buy: 1, get: 1, pct: 25 } },
+  { key: 'bundle3', deal: { type: 'bundle', n: 3 } },
+  { key: 'bulk3', deal: { type: 'bulk', min: 3, offPct: 20 } },
+];
+const DEAL_OFF_PCTS = [10, 15, 20, 25, 30, 50];
+const dealText = (d, t, money) => {
+  const short = (n) => (Number.isInteger(n) ? money(n).replace(/[.,]0+$/, '') : money(n));
+  if (d.type === 'free') return t.dealFree(d.buy, d.get);
+  if (d.type === 'pct') return d.buy === 1 && d.get === 1 ? t.dealSecond(d.pct) : t.dealPct(d.buy, d.get, d.pct);
+  if (d.type === 'bundle') return parseNum(d.bundle) > 0 ? t.dealBundle(d.n, short(parseNum(d.bundle))) : t.dealBundleSet(d.n);
+  if (d.type === 'bulk') return t.dealBulk(d.min, d.offPct);
+  if (d.type === 'spend') {
+    const off = parseNum(d.spendOff);
+    if (!(off > 0) || !(parseNum(d.spend) >= 0)) return t.dealSpendSet;
+    return t.dealSpend(short(parseNum(d.spend)), d.spendType === 'pct' ? `${trimNum(off)}%` : short(off));
+  }
+  return t.dealAdd;
+};
+const cleanAmount = (v, dec) => {
+  const s = v.replace(',', '.').replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+  const [i, f] = s.split('.');
+  if (f === undefined) return i.slice(0, 9);
+  return dec === 0 ? i.slice(0, 9) : `${i.slice(0, 9)}.${f.slice(0, dec)}`;
+};
 
-const Stepper = ({ label, value, onChange, theme, font, rtl }) => (
+const Stepper = ({ label, value, onChange, theme, font, rtl, min = 1 }) => (
   <View style={[styles.stepper, { flexDirection: flow(rtl) }]}>
     <Text style={[styles.stepperLabel, font(700), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{label}</Text>
     <View style={[styles.stepperCtl, { backgroundColor: theme.glass, flexDirection: flow(false) }]}>
-      <Pressable onPress={() => { haptic.select(); onChange(Math.max(1, value - 1)); }} hitSlop={6} style={styles.stepperBtn} accessibilityLabel={`${label} −`}>
+      <Pressable onPress={() => { haptic.select(); onChange(Math.max(min, value - 1)); }} hitSlop={6} style={styles.stepperBtn} accessibilityLabel={`${label} −`}>
         <Ionicons name="remove" size={20} color={theme.text} />
       </Pressable>
       <Text style={[styles.stepperValue, num(800), { color: theme.text }]}>{value}</Text>
@@ -671,60 +763,183 @@ const Stepper = ({ label, value, onChange, theme, font, rtl }) => (
   </View>
 );
 
-const DealSheet = ({ visible, onClose, deal, onChange, theme, t, font, rtl }) => (
-  <SheetFrame visible={visible} onClose={onClose} theme={theme}>
-    <View style={[styles.sheetNav, { flexDirection: flow(rtl) }]}>
-      <Text style={[styles.sheetTitle, font(800), { color: theme.text, flex: 1, textAlign: rtl ? 'right' : 'left' }]}>{t.deal}</Text>
-      <Pressable onPress={onClose} hitSlop={10} style={[styles.pill, { backgroundColor: theme.solid }]}>
-        <Text style={[styles.pillText, font(700), { color: theme.onSolid }]}>{t.done}</Text>
-      </Pressable>
-    </View>
-    <Segmented options={['none', 'free', 'pct'].map((v) => ({ value: v, label: t.dealTypes[v] }))}
-      value={deal.type} onChange={(type) => onChange({ ...deal, type })} theme={theme} rtl={rtl} font={font} />
-    {deal.type !== 'none' && (
-      <View style={[styles.glassCard, { backgroundColor: theme.glass, borderColor: theme.glassBorder, padding: 14, gap: 12 }]}>
-        <Stepper label={t.buy} value={deal.buy} onChange={(buy) => onChange({ ...deal, buy })} theme={theme} font={font} rtl={rtl} />
-        <Stepper label={t.get} value={deal.get} onChange={(get) => onChange({ ...deal, get })} theme={theme} font={font} rtl={rtl} />
-        {deal.type === 'pct' && (
-          <View style={[styles.stepper, { flexDirection: flow(rtl) }]}>
-            <Text style={[styles.stepperLabel, font(700), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.dealOff}</Text>
-            <View style={[styles.chipInner, { flexDirection: flow(false), paddingHorizontal: 0 }]}>
-              {DEAL_PCTS.map((p) => (
-                <Pressable key={p} onPress={() => { haptic.select(); onChange({ ...deal, pct: p }); }}
-                  style={[styles.chip, { backgroundColor: deal.pct === p ? theme.solid : theme.glass }]}>
-                  <Text style={[styles.chipText, num(700), { color: deal.pct === p ? theme.onSolid : theme.text }]}>{p}%</Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        )}
-      </View>
-    )}
-    <Text style={[styles.note, font(600), { color: deal.type === 'none' ? theme.textSecondary : theme.save, textAlign: 'center' }]}>
-      {deal.type === 'none' ? t.dealHint : `${dealText(deal, t)} · ${t.dealHint}`}
-    </Text>
-  </SheetFrame>
+const ChipRow = ({ items, value, onPick, theme, rtl, wrap }) => (
+  <View style={[styles.chipInner, { flexDirection: flow(rtl), paddingHorizontal: 0, flexWrap: wrap ? 'wrap' : 'nowrap' }]}>
+    {items.map((it) => {
+      const on = it.value === value;
+      return (
+        <Pressable key={String(it.value)} onPress={() => { haptic.select(); onPick(it.value); }}
+          style={[styles.chip, { backgroundColor: on ? theme.solid : theme.glass }]}>
+          <Text style={[styles.chipText, num(700), { color: on ? theme.onSolid : theme.text }]}>{it.label}</Text>
+        </Pressable>
+      );
+    })}
+  </View>
 );
 
-// ─── Country / currency picker (first launch, and from the currency button) ────
+const AmountField = ({ label, value, onChange, theme, font, rtl, rg, placeholder }) => (
+  <View style={[styles.stepper, { flexDirection: flow(rtl) }]}>
+    <Text style={[styles.stepperLabel, font(700), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{label}</Text>
+    <View style={[styles.amountBox, { flexDirection: flow(false), backgroundColor: theme.glass }]}>
+      {!!rg.sym && <Text style={[styles.amountSym, num(700), { color: theme.textSecondary }]}>{rg.sym}</Text>}
+      <TextInput value={value} onChangeText={(v) => onChange(cleanAmount(v, rg.dec))} keyboardType="decimal-pad"
+        placeholder={placeholder || '0'} placeholderTextColor={theme.textMuted}
+        style={[styles.amountInput, num(800), { color: theme.text }]} />
+    </View>
+  </View>
+);
+
+const DealSheet = ({ visible, onClose, deal, onChange, theme, t, font, rtl, money, rg }) => {
+  const set = (patch) => onChange({ ...deal, ...patch });
+  const preview = deal.type === 'none' ? t.dealHint : `${dealText(deal, t, money)} · ${t.dealHint}`;
+  return (
+    <SheetFrame visible={visible} onClose={onClose} theme={theme} tall>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flexShrink: 1 }}>
+        <ScrollView contentContainerStyle={{ gap: 12 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <View style={[styles.sheetNav, { flexDirection: flow(rtl) }]}>
+            <Text style={[styles.sheetTitle, font(800), { color: theme.text, flex: 1, textAlign: rtl ? 'right' : 'left' }]}>{t.deal}</Text>
+            <Pressable onPress={onClose} hitSlop={10} style={[styles.pill, { backgroundColor: theme.solid }]}>
+              <Text style={[styles.pillText, font(700), { color: theme.onSolid }]}>{t.done}</Text>
+            </Pressable>
+          </View>
+
+          <Text style={[styles.sectionLabel, font(700), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.dealQuick}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.chipInner, { flexDirection: flow(rtl), paddingHorizontal: 0 }]}>
+            {DEAL_TEMPLATES.map((tp) => (
+              <Pressable key={tp.key} onPress={() => { haptic.select(); onChange({ ...DEFAULT_DEAL, ...deal, ...tp.deal }); }}
+                style={[styles.chip, styles.templateChip, { backgroundColor: theme.glassStrong }]}>
+                <Text style={[styles.chipText, font(700), { color: theme.text }]}>{t.dealTpl[tp.key]}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
+          <Text style={[styles.sectionLabel, font(700), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.dealKind}</Text>
+          <View style={[styles.chipInner, { flexDirection: flow(rtl), paddingHorizontal: 0, flexWrap: 'wrap' }]}>
+            {DEAL_TYPES.map((v) => {
+              const on = deal.type === v;
+              return (
+                <Pressable key={v} onPress={() => { haptic.select(); set({ type: v, ...(v !== deal.type && v === 'spend' ? { n: 1 } : v !== deal.type && v === 'bundle' ? { n: Math.max(2, deal.n) } : {}) }); }}
+                  style={[styles.chip, { backgroundColor: on ? theme.solid : theme.glass }]}>
+                  <Text style={[styles.chipText, font(700), { color: on ? theme.onSolid : theme.text }]}>{t.dealTypes[v]}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {deal.type !== 'none' && (
+            <View style={[styles.glassCard, { backgroundColor: theme.glass, borderColor: theme.glassBorder, padding: 14, gap: 12 }]}>
+              {(deal.type === 'free' || deal.type === 'pct') && (
+                <>
+                  <Stepper label={t.buy} value={deal.buy} onChange={(buy) => set({ buy })} theme={theme} font={font} rtl={rtl} />
+                  <Stepper label={t.get} value={deal.get} onChange={(get) => set({ get })} theme={theme} font={font} rtl={rtl} />
+                </>
+              )}
+              {deal.type === 'pct' && (
+                <View style={{ gap: 8 }}>
+                  <Text style={[styles.stepperLabel, font(700), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.dealOff}</Text>
+                  <ChipRow items={[25, 30, 40, 50, 75].map((p) => ({ value: p, label: `${p}%` }))} value={deal.pct} onPick={(pct) => set({ pct })} theme={theme} rtl={rtl} wrap />
+                </View>
+              )}
+              {deal.type === 'bundle' && (
+                <>
+                  <Stepper label={t.dealItems} value={deal.n} min={2} onChange={(n) => set({ n })} theme={theme} font={font} rtl={rtl} />
+                  <AmountField label={t.dealFor} value={deal.bundle} onChange={(bundle) => set({ bundle })} theme={theme} font={font} rtl={rtl} rg={rg} />
+                </>
+              )}
+              {deal.type === 'bulk' && (
+                <>
+                  <Stepper label={t.dealAtLeast} value={deal.min} min={2} onChange={(min) => set({ min })} theme={theme} font={font} rtl={rtl} />
+                  <View style={{ gap: 8 }}>
+                    <Text style={[styles.stepperLabel, font(700), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.dealOffAll}</Text>
+                    <ChipRow items={DEAL_OFF_PCTS.map((p) => ({ value: p, label: `${p}%` }))} value={deal.offPct} onPick={(offPct) => set({ offPct })} theme={theme} rtl={rtl} wrap />
+                  </View>
+                </>
+              )}
+              {deal.type === 'spend' && (
+                <>
+                  <Stepper label={t.dealItems} value={deal.n} onChange={(n) => set({ n })} theme={theme} font={font} rtl={rtl} />
+                  <AmountField label={t.dealSpendMin} value={deal.spend} onChange={(spend) => set({ spend })} theme={theme} font={font} rtl={rtl} rg={rg} />
+                  <View style={[styles.stepper, { flexDirection: flow(rtl) }]}>
+                    <Text style={[styles.stepperLabel, font(700), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.dealSpendOff}</Text>
+                    <View style={[{ flexDirection: flow(false), gap: 6, alignItems: 'center' }]}>
+                      <View style={[styles.amountBox, { flexDirection: flow(false), backgroundColor: theme.glass, minWidth: 96 }]}>
+                        <TextInput value={deal.spendOff} onChangeText={(v) => set({ spendOff: cleanAmount(v, deal.spendType === 'pct' ? 2 : rg.dec) })}
+                          keyboardType="decimal-pad" placeholder="0" placeholderTextColor={theme.textMuted}
+                          style={[styles.amountInput, num(800), { color: theme.text }]} />
+                      </View>
+                      <View style={[styles.typeToggle, { backgroundColor: theme.glass }]}>
+                        {['amt', 'pct'].map((ty) => (
+                          <Pressable key={ty} onPress={() => { haptic.select(); set({ spendType: ty }); }}
+                            style={[styles.typeOpt, { height: 32 }, deal.spendType === ty && { backgroundColor: theme.solid }]}>
+                            <Text style={[styles.typeOptText, num(800), { color: deal.spendType === ty ? theme.onSolid : theme.textSecondary }]}>{ty === 'pct' ? '%' : (rg.sym || t.amt)}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                  </View>
+                </>
+              )}
+            </View>
+          )}
+          <Text style={[styles.note, font(600), { color: deal.type === 'none' ? theme.textSecondary : theme.save, textAlign: 'center' }]}>{preview}</Text>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SheetFrame>
+  );
+};
+
+// ─── Country picker (first launch, and from the currency button) ─────────────
+const SearchBox = ({ value, onChange, placeholder, theme, font, rtl }) => (
+  <View style={[styles.searchBox, { flexDirection: flow(rtl), backgroundColor: theme.glass, borderColor: theme.glassBorder }]}>
+    <Ionicons name="search" size={18} color={theme.textMuted} />
+    <TextInput value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor={theme.textMuted}
+      autoCorrect={false} autoCapitalize="none" returnKeyType="search"
+      style={[styles.searchInput, font(600), { color: theme.text, textAlign: rtl ? 'right' : 'left' }]} />
+    {!!value && (
+      <Pressable onPress={() => onChange('')} hitSlop={10} accessibilityLabel="Clear search">
+        <Ionicons name="close-circle" size={18} color={theme.textMuted} />
+      </Pressable>
+    )}
+  </View>
+);
+
+const ListHeader = ({ label, theme, font, rtl }) => (
+  <Text style={[styles.listHeader, font(800), { color: theme.textMuted, textAlign: rtl ? 'right' : 'left' }]}>{label}</Text>
+);
+
 const RegionSheet = ({ visible, fromButton, onSkip, onApply, theme, t, font, rtl, lang }) => {
   const [step, setStep] = useState('pick');
   const [pending, setPending] = useState(null);
+  const [query, setQuery] = useState('');
   const [code, setCode] = useState('');
   const [vat, setVat] = useState('');
-  useEffect(() => { if (visible) { setStep('pick'); setPending(null); } }, [visible]);
+  useEffect(() => { if (visible) { setStep('pick'); setPending(null); setQuery(''); } }, [visible]);
   const align = rtl ? 'right' : 'left';
   const noteText = (c) => (c.note === 'varies' ? t.noteVaries : c.note === 'state' ? t.noteState : '');
-  const pick = (c) => { haptic.select(); setPending(c); setStep('confirm'); };
+  const pick = (r) => { haptic.select(); setPending(r); setStep('confirm'); };
   const manualDone = () => {
     const cur = code.trim().toUpperCase().slice(0, 5);
+    const known = CURRENCY_BY_CODE[cur];
     const rate = Math.min(parseNum(vat.replace(',', '.')), 100);
-    pick({ id: 'XX', en: cur || '—', ar: cur || '—', cur, sym: cur, dec: 2, vat: Math.round(rate * 100) / 100 });
+    pick({ id: 'XX', en: cur || '—', ar: cur || '—', cur, sym: known ? known.sym : cur, dec: known ? known.dec : 2, vat: Math.round(rate * 100) / 100 });
   };
+  const { popular, rest } = useMemo(() => searchCountries(query), [query]);
   const Btn = ({ label, onPress, primary }) => (
     <Pressable onPress={onPress}
       style={({ pressed }) => [styles.sheetBtn, { backgroundColor: primary ? theme.solid : theme.glassStrong, opacity: pressed ? 0.8 : 1 }]}>
       <Text style={[styles.sheetBtnText, font(700), { color: primary ? theme.onSolid : theme.text }]}>{label}</Text>
+    </Pressable>
+  );
+  const Row = ({ c }) => (
+    <Pressable onPress={() => pick(regionFromCountry(c))}
+      style={({ pressed }) => [styles.regionRow, { flexDirection: flow(rtl), backgroundColor: pressed ? theme.glassStrong : 'transparent', borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.regionName, font(700), { color: theme.text, textAlign: align }]}>{c[lang]}</Text>
+        <Text style={[styles.regionMeta, font(600), { color: theme.textSecondary, textAlign: align }]}>
+          {`${c.cur} · ${t.vatLabel(c.vat)}${noteText(c) ? ` · ${noteText(c)}` : ''}`}
+        </Text>
+      </View>
+      <Text style={[styles.regionCode, num(800), { color: theme.textMuted }]}>{c.cur}</Text>
     </Pressable>
   );
   return (
@@ -734,22 +949,21 @@ const RegionSheet = ({ visible, fromButton, onSkip, onApply, theme, t, font, rtl
           <>
             <Text style={[styles.sheetTitle, font(800), { color: theme.text }]}>{t.regionTitle}</Text>
             <Text style={[styles.sheetSub, font(400), { color: theme.textSecondary }]}>{t.regionSub}</Text>
-            <ScrollView style={[styles.glassCard, styles.regionList, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}>
-              {[...COUNTRIES, { id: 'XX' }].map((c, i, all) => (
-                <Pressable key={c.id} onPress={() => (c.id === 'XX' ? setStep('manual') : pick(c))}
-                  style={({ pressed }) => [styles.regionRow, { flexDirection: flow(rtl), backgroundColor: pressed ? theme.glassStrong : 'transparent' },
-                    i < all.length - 1 && { borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.regionName, font(700), { color: theme.text, textAlign: align }]}>{c.id === 'XX' ? t.other : c[lang]}</Text>
-                    {c.id !== 'XX' && (
-                      <Text style={[styles.regionMeta, font(600), { color: theme.textSecondary, textAlign: align }]}>
-                        {`${c.cur} · ${t.vatLabel(c.vat)}${noteText(c) ? ` · ${noteText(c)}` : ''}`}
-                      </Text>
-                    )}
-                  </View>
-                  <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={18} color={theme.textMuted} />
-                </Pressable>
-              ))}
+            <SearchBox value={query} onChange={setQuery} placeholder={t.searchCountry} theme={theme} font={font} rtl={rtl} />
+            <ScrollView style={[styles.glassCard, styles.regionList, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}
+              keyboardShouldPersistTaps="handled">
+              {popular.length > 0 && <ListHeader label={t.popular} theme={theme} font={font} rtl={rtl} />}
+              {popular.map((c) => <Row key={`p-${c.id}`} c={c} />)}
+              {popular.length > 0 && <ListHeader label={t.allCountries} theme={theme} font={font} rtl={rtl} />}
+              {rest.map((c) => <Row key={c.id} c={c} />)}
+              {rest.length === 0 && popular.length === 0 && (
+                <Text style={[styles.emptyText, font(600), { color: theme.textSecondary }]}>{t.noResults}</Text>
+              )}
+              <Pressable onPress={() => setStep('manual')}
+                style={({ pressed }) => [styles.regionRow, { flexDirection: flow(rtl), backgroundColor: pressed ? theme.glassStrong : 'transparent' }]}>
+                <Ionicons name="create-outline" size={18} color={theme.save} />
+                <Text style={[styles.regionName, font(700), { color: theme.save, flex: 1, textAlign: align }]}>{t.other}</Text>
+              </Pressable>
             </ScrollView>
             <Pressable onPress={onSkip} style={styles.sheetGhost}>
               <Text style={[styles.sheetBtnText, font(600), { color: theme.textSecondary }]}>{fromButton ? t.cancel : t.skip}</Text>
@@ -779,6 +993,7 @@ const RegionSheet = ({ visible, fromButton, onSkip, onApply, theme, t, font, rtl
               <Text style={[styles.regionMeta, font(600), { color: theme.textSecondary }]}>
                 {`${pending.cur || '—'} · ${t.vatLabel(pending.vat)}`}
               </Text>
+              {pending.vat === null && <Text style={[styles.regionMeta, font(600), { color: theme.save, textAlign: 'center' }]}>{t.vatUnknown}</Text>}
             </View>
             <Text style={[styles.sheetSub, font(400), { color: theme.textSecondary }]}>{t.confirmSub}</Text>
             <Btn label={t.saveDefault} onPress={() => onApply(pending, true)} primary />
@@ -794,22 +1009,47 @@ const RegionSheet = ({ visible, fromButton, onSkip, onApply, theme, t, font, rtl
 };
 
 // ─── Home-currency conversion ─────────────────────────────────────────────────
-const FxSheet = ({ visible, onClose, rg, home, onHome, fx, onRefresh, manual, onManual, theme, t, font, rtl, lang }) => {
+// Step 1: pick the home currency (search). Step 2: confirm today's rate or enter your own.
+const FxSheet = ({ visible, onClose, rg, home, onHome, fx, onRefresh, manual, onManual, confirmed, onConfirm, theme, t, font, rtl, lang }) => {
+  const [step, setStep] = useState('rate');
+  const [query, setQuery] = useState('');
   const [own, setOwn] = useState('');
-  const [editing, setEditing] = useState(false);
-  useEffect(() => { if (visible) { setEditing(false); setOwn(manual ? String(manual) : ''); } }, [visible]);
+  useEffect(() => {
+    if (!visible) return;
+    setQuery(''); setOwn(manual ? String(manual) : '');
+    setStep(home && rg.cur ? 'rate' : 'pick');
+  }, [visible]);
   const align = rtl ? 'right' : 'left';
   const live = home && fx.rates ? fx.rates[home.cur] : null;
-  const status = !home ? null
-    : manual ? t.fxManualOn
-    : fx.loading && !live ? t.fxLoading
-    : live ? (fx.error ? t.fxOffline(fmtDate(fx.time, lang)) : t.fxUpdated(fmtDate(fx.time, lang)))
-    : t.fxFailed;
-  const rate = manual || live;
+  const { popular, rest } = useMemo(() => searchCurrencies(query), [query]);
   const saveOwn = () => {
     const v = parseNum(own.replace(',', '.'));
-    if (v > 0) { onManual(v); setEditing(false); }
+    if (v > 0) { haptic.tap(); onManual(v); onClose(); }
   };
+  const Row = ({ c }) => {
+    const selected = home && home.cur === c.cur;
+    const same = c.cur === rg.cur;
+    const where = currencyCountries(c, lang);
+    return (
+      <Pressable disabled={same} onPress={() => { haptic.select(); onHome(c); setStep('rate'); }}
+        style={({ pressed }) => [styles.regionRow, { flexDirection: flow(rtl), opacity: same ? 0.45 : 1, backgroundColor: pressed ? theme.glassStrong : 'transparent', borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
+        <Text style={[styles.curCode, num(800), { color: theme.text }]}>{c.cur}</Text>
+        <View style={{ flex: 1 }}>
+          <Text numberOfLines={1} style={[styles.regionName, font(700), { color: theme.text, textAlign: align }]}>{lang === 'ar' && where[0] ? where[0] : c.name}</Text>
+          <Text numberOfLines={1} style={[styles.regionMeta, font(600), { color: theme.textSecondary, textAlign: align }]}>
+            {same ? t.fxSame : (lang === 'ar' ? where.slice(1, 4) : where.slice(0, 3)).join('، ') + (where.length > 3 ? ' …' : '')}
+          </Text>
+        </View>
+        {selected && <Ionicons name="checkmark-circle" size={22} color={theme.save} />}
+      </Pressable>
+    );
+  };
+  const Btn = ({ label, onPress, primary, disabled }) => (
+    <Pressable onPress={onPress} disabled={disabled}
+      style={({ pressed }) => [styles.sheetBtn, { backgroundColor: primary ? theme.solid : theme.glassStrong, opacity: disabled ? 0.4 : pressed ? 0.8 : 1 }]}>
+      <Text style={[styles.sheetBtnText, font(700), { color: primary ? theme.onSolid : theme.text }]}>{label}</Text>
+    </Pressable>
+  );
   return (
     <SheetFrame visible={visible} onClose={onClose} theme={theme} tall>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ gap: 12, flexShrink: 1 }}>
@@ -819,62 +1059,79 @@ const FxSheet = ({ visible, onClose, rg, home, onHome, fx, onRefresh, manual, on
             <Text style={[styles.pillText, font(700), { color: theme.onSolid }]}>{t.done}</Text>
           </Pressable>
         </View>
-        <Text style={[styles.sheetSub, font(400), { color: theme.textSecondary, textAlign: align }]}>{rg.cur ? t.fxSub : t.fxNeedRegion}</Text>
+        {!rg.cur && <Text style={[styles.sheetSub, font(400), { color: theme.textSecondary, textAlign: align }]}>{t.fxNeedRegion}</Text>}
 
-        {home && rg.cur && (
-          <View style={[styles.glassCard, { backgroundColor: theme.glass, borderColor: theme.glassBorder, padding: 14, gap: 10 }]}>
-            <Text style={[styles.fxRateText, num(800), { color: theme.text, textAlign: align }]}>
-              {rate ? t.fxRate(rg.cur, fmtRate(rate), home.cur) : '—'}
-            </Text>
-            <Text style={[styles.regionMeta, font(600), { color: !rate ? theme.danger : theme.textSecondary, textAlign: align }]}>{status}</Text>
-            {editing ? (
-              <View style={[{ flexDirection: flow(rtl), gap: 8, alignItems: 'center' }]}>
-                <TextInput value={own} onChangeText={(v) => setOwn(v.replace(/[^0-9.,]/g, ''))} autoFocus
-                  placeholder={t.fxOwnHint(rg.cur, home.cur)} placeholderTextColor={theme.textMuted} keyboardType="decimal-pad" maxLength={12}
-                  style={[styles.textInput, num(700), { flex: 1, color: theme.text, backgroundColor: theme.glass, borderColor: theme.glassBorder, textAlign: align }]} />
-                <Pressable onPress={saveOwn} style={[styles.pill, { backgroundColor: theme.solid, height: 52, paddingHorizontal: 16 }]}>
-                  <Text style={[styles.pillText, font(700), { color: theme.onSolid }]}>{t.fxSave}</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <View style={[{ flexDirection: flow(rtl), gap: 8, flexWrap: 'wrap' }]}>
-                {manual ? (
-                  <Pressable onPress={() => onManual(null)} style={[styles.pill, { backgroundColor: theme.glassStrong }]}>
-                    <Text style={[styles.pillText, font(700), { color: theme.text }]}>{t.fxUseLive}</Text>
-                  </Pressable>
-                ) : (
-                  <Pressable onPress={onRefresh} disabled={fx.loading} style={[styles.pill, { backgroundColor: theme.glassStrong, opacity: fx.loading ? 0.5 : 1 }]}>
-                    <Ionicons name="refresh" size={13} color={theme.text} />
-                    <Text style={[styles.pillText, font(700), { color: theme.text }]}>{t.fxRefresh}</Text>
-                  </Pressable>
-                )}
-                <Pressable onPress={() => setEditing(true)} style={[styles.pill, { backgroundColor: theme.glassStrong }]}>
-                  <Ionicons name="create-outline" size={13} color={theme.text} />
-                  <Text style={[styles.pillText, font(700), { color: theme.text }]}>{t.fxOwn}</Text>
-                </Pressable>
-              </View>
+        {step === 'pick' && !!rg.cur && (
+          <>
+            <Text style={[styles.sheetSub, font(400), { color: theme.textSecondary, textAlign: align }]}>{t.fxSub}</Text>
+            <SearchBox value={query} onChange={setQuery} placeholder={t.searchCurrency} theme={theme} font={font} rtl={rtl} />
+            <ScrollView style={[styles.glassCard, styles.regionList, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]} keyboardShouldPersistTaps="handled">
+              {popular.length > 0 && <ListHeader label={t.popular} theme={theme} font={font} rtl={rtl} />}
+              {popular.map((c) => <Row key={`p-${c.cur}`} c={c} />)}
+              {popular.length > 0 && <ListHeader label={t.allCurrencies} theme={theme} font={font} rtl={rtl} />}
+              {rest.map((c) => <Row key={c.cur} c={c} />)}
+              {rest.length === 0 && popular.length === 0 && <Text style={[styles.emptyText, font(600), { color: theme.textSecondary }]}>{t.noResults}</Text>}
+            </ScrollView>
+            {home && (
+              <Pressable onPress={() => { haptic.select(); onHome(null); onClose(); }} style={styles.sheetGhost}>
+                <Text style={[styles.sheetBtnText, font(600), { color: theme.danger }]}>{t.fxTurnOff}</Text>
+              </Pressable>
             )}
-          </View>
+          </>
         )}
 
-        <ScrollView style={[styles.glassCard, styles.regionList, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}>
-          {[{ cur: '' }, ...CURRENCIES].map((c, i, all) => {
-            const selected = (home ? home.cur : '') === c.cur;
-            const same = c.cur && c.cur === rg.cur;
-            return (
-              <Pressable key={c.cur || 'off'} disabled={same} onPress={() => { haptic.select(); onHome(c.cur ? c : null); }}
-                style={({ pressed }) => [styles.regionRow, { flexDirection: flow(rtl), opacity: same ? 0.45 : 1, backgroundColor: pressed ? theme.glassStrong : 'transparent' },
-                  i < all.length - 1 && { borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.regionName, font(700), { color: theme.text, textAlign: align }]}>{c.cur ? c.cur : t.fxOff}</Text>
-                  {!!c.cur && <Text style={[styles.regionMeta, font(600), { color: theme.textSecondary, textAlign: align }]}>{same ? t.fxSame : c[lang]}</Text>}
-                </View>
-                {selected && <Ionicons name="checkmark-circle" size={22} color={theme.save} />}
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-        <Text style={[styles.fxSource, font(600), { color: theme.textMuted }]}>{t.fxSource}</Text>
+        {step === 'rate' && home && !!rg.cur && (
+          <>
+            <Pressable onPress={() => setStep('pick')}
+              style={({ pressed }) => [styles.glassCard, styles.regionRow, { flexDirection: flow(rtl), backgroundColor: pressed ? theme.glassStrong : theme.glass, borderColor: theme.glassBorder }]}>
+              <Text style={[styles.curCode, num(800), { color: theme.text }]}>{rg.cur}</Text>
+              <Ionicons name={rtl ? 'arrow-back' : 'arrow-forward'} size={18} color={theme.textMuted} />
+              <Text style={[styles.curCode, num(800), { color: theme.save }]}>{home.cur}</Text>
+              <Text style={[styles.regionMeta, font(700), { color: theme.textSecondary, flex: 1, textAlign: rtl ? 'left' : 'right' }]}>{t.fxChange}</Text>
+            </Pressable>
+
+            <View style={[styles.glassCard, { backgroundColor: theme.glass, borderColor: theme.glassBorder, padding: 16, gap: 6 }]}>
+              <Text style={[styles.sectionLabel, font(700), { color: theme.textSecondary, textAlign: align }]}>{t.fxToday}</Text>
+              <Text style={[styles.fxRateText, num(800), { color: live ? theme.text : theme.textMuted, textAlign: align }]}>
+                {live ? t.fxRate(rg.cur, fmtRate(live), home.cur) : fx.loading ? t.fxLoading : '—'}
+              </Text>
+              <Text style={[styles.regionMeta, font(600), { color: live ? theme.textSecondary : theme.danger, textAlign: align }]}>
+                {live ? (fx.error ? t.fxOffline(fmtDate(fx.time, lang)) : t.fxUpdated(fmtDate(fx.time, lang))) : fx.loading ? '' : t.fxFailed}
+              </Text>
+              <View style={[{ flexDirection: flow(rtl), gap: 8, marginTop: 4 }]}>
+                <Pressable onPress={onRefresh} disabled={fx.loading} style={[styles.pill, { backgroundColor: theme.glassStrong, opacity: fx.loading ? 0.5 : 1 }]}>
+                  <Ionicons name="refresh" size={13} color={theme.text} />
+                  <Text style={[styles.pillText, font(700), { color: theme.text }]}>{t.fxRefresh}</Text>
+                </Pressable>
+                {!manual && confirmed && live && (
+                  <View style={[styles.pill, { backgroundColor: 'transparent' }]}>
+                    <Ionicons name="checkmark-circle" size={14} color={theme.save} />
+                    <Text style={[styles.pillText, font(700), { color: theme.save }]}>{t.fxInUse}</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+            <Btn label={t.fxConfirm} primary disabled={!live} onPress={() => { haptic.tap(); onConfirm(); onClose(); }} />
+
+            <View style={[styles.glassCard, { backgroundColor: theme.glass, borderColor: theme.glassBorder, padding: 16, gap: 10 }]}>
+              <Text style={[styles.sectionLabel, font(700), { color: theme.textSecondary, textAlign: align }]}>{t.fxOwnTitle}</Text>
+              <View style={[{ flexDirection: flow(rtl), gap: 8, alignItems: 'center' }]}>
+                <Text style={[styles.regionMeta, num(700), { color: theme.textSecondary }]}>{`1 ${rg.cur} =`}</Text>
+                <TextInput value={own} onChangeText={(v) => setOwn(v.replace(/[^0-9.,]/g, ''))}
+                  placeholder="0.00" placeholderTextColor={theme.textMuted} keyboardType="decimal-pad" maxLength={12}
+                  style={[styles.textInput, num(800), { flex: 1, color: theme.text, backgroundColor: theme.glass, borderColor: theme.glassBorder, textAlign: 'center' }]} />
+                <Text style={[styles.regionMeta, num(700), { color: theme.textSecondary }]}>{home.cur}</Text>
+              </View>
+              <Btn label={manual ? t.fxUpdateOwn : t.fxUseOwn} onPress={saveOwn} disabled={!(parseNum(own.replace(',', '.')) > 0)} />
+              {!!manual && (
+                <Pressable onPress={() => { haptic.select(); onManual(null); }} style={styles.sheetGhost}>
+                  <Text style={[styles.sheetBtnText, font(600), { color: theme.textSecondary }]}>{t.fxUseLive}</Text>
+                </Pressable>
+              )}
+            </View>
+            <Text style={[styles.fxSource, font(600), { color: theme.textMuted }]}>{t.fxSource}</Text>
+          </>
+        )}
       </KeyboardAvoidingView>
     </SheetFrame>
   );
@@ -901,6 +1158,8 @@ const restoreForm = (raw) => {
   };
 };
 const UNDO_MS = 5000;
+// Big total: smaller type for long amounts so it and the old price fit one line.
+const heroSize = (len, compact) => Math.round((len > 12 ? 32 : len > 9 ? 38 : 46) * (compact ? 0.85 : 1));
 
 const CalculatorScreen = () => {
   const systemScheme = useColorScheme();
@@ -925,6 +1184,7 @@ const CalculatorScreen = () => {
   const [trayH, setTrayH] = useState(0);
   const [home, setHome] = useState(null);           // { cur, sym, dec } or null
   const [fxManual, setFxManual] = useState({});      // { 'AED>EUR': 0.25 }
+  const [fxConfirmed, setFxConfirmed] = useState({}); // { 'AED>EUR': true } once the shopper accepts the live rate
   const [fx, setFx] = useState({ rates: null, time: 0, loading: false, error: false, base: '' });
   const [fxVisible, setFxVisible] = useState(false);
   const undoTimer = useRef(null);
@@ -937,8 +1197,8 @@ const CalculatorScreen = () => {
   useEffect(() => {
     (async () => {
       try {
-        const [savedTheme, savedLang, savedMode, savedRegion, savedForm, savedHome, savedFxManual] = await Promise.all(
-          ['theme', 'lang', 'mode', 'region', 'form', 'home', 'fxManual'].map((k) => AsyncStorage.getItem(k))
+        const [savedTheme, savedLang, savedMode, savedRegion, savedForm, savedHome, savedFxManual, savedFxConfirmed] = await Promise.all(
+          ['theme', 'lang', 'mode', 'region', 'form', 'home', 'fxManual', 'fxConfirmed'].map((k) => AsyncStorage.getItem(k))
         );
         setIsDark(savedTheme !== null ? savedTheme === 'dark' : systemScheme !== 'light');
         if (savedLang && translations[savedLang]) setLang(savedLang);
@@ -946,6 +1206,7 @@ const CalculatorScreen = () => {
         const h = savedHome ? JSON.parse(savedHome) : null;
         if (h && h.cur) setHome(h);
         if (savedFxManual) setFxManual(JSON.parse(savedFxManual) || {});
+        if (savedFxConfirmed) setFxConfirmed(JSON.parse(savedFxConfirmed) || {});
         const r = savedRegion ? JSON.parse(savedRegion) : null;
         if (r && typeof r.dec === 'number') { setRegion(r); setRegionSaved(true); }
         const restored = savedForm ? restoreForm(JSON.parse(savedForm)) : null;
@@ -1018,12 +1279,17 @@ const CalculatorScreen = () => {
   const fxKey = home ? `${rg.cur}>${home.cur}` : '';
   const manualRate = fxManual[fxKey] || null;
   const liveRate = home && fx.base === rg.cur && fx.rates ? fx.rates[home.cur] : null;
-  const fxRate = home && rg.cur && home.cur !== rg.cur ? (manualRate || liveRate) : null;
+  const pairReady = home && rg.cur && home.cur !== rg.cur;
+  const fxRate = pairReady ? (manualRate || (fxConfirmed[fxKey] ? liveRate : null)) : null;
+  const needsConfirm = pairReady && !manualRate && !fxConfirmed[fxKey];
   const homeRegion = home ? { sym: home.sym, dec: home.dec } : null;
   const chooseHome = (c) => {
     const h = c ? { cur: c.cur, sym: c.sym, dec: c.dec } : null;
     setHome(h);
     if (h) persist('home', JSON.stringify(h)); else AsyncStorage.removeItem('home').catch(() => {});
+  };
+  const confirmRate = () => {
+    setFxConfirmed((m) => { const next = { ...m, [fxKey]: true }; persist('fxConfirmed', JSON.stringify(next)); return next; });
   };
   const setManual = (v) => {
     setFxManual((m) => {
@@ -1159,7 +1425,7 @@ const CalculatorScreen = () => {
   const stepLabel = (s) => {
     if (s.kind === 'discount') return `${stacked ? t.discountN(s.index + 1) : t.discount} (${adjText(s)})`;
     if (s.kind === 'coupon') return `${t.coupon(s.index + 1)} (${adjText(s)})`;
-    if (s.kind === 'deal') return dealText(form.deal, t);
+    if (s.kind === 'deal') return dealText(form.deal, t, money);
     return `${t.tax} (${trimNum(s.value)}%)`;
   };
   const converted = fxRate && result.original > 0 ? fmtMoney(result.final * fxRate, homeRegion) : '';
@@ -1199,9 +1465,10 @@ const CalculatorScreen = () => {
       <FxSheet visible={fxVisible} onClose={() => setFxVisible(false)} rg={rg} home={home} onHome={chooseHome}
         fx={fx.base === rg.cur ? fx : { rates: null, time: 0, loading: fx.loading, error: fx.error }}
         onRefresh={() => loadRates(true)} manual={manualRate} onManual={setManual}
+        confirmed={!!fxConfirmed[fxKey]} onConfirm={confirmRate}
         theme={theme} t={t} font={font} rtl={rtl} lang={lang} />
       <DealSheet visible={dealVisible} onClose={() => setDealVisible(false)} deal={form.deal}
-        onChange={(deal) => setForm((f) => ({ ...f, deal }))} theme={theme} t={t} font={font} rtl={rtl} />
+        onChange={(deal) => setForm((f) => ({ ...f, deal }))} theme={theme} t={t} font={font} rtl={rtl} money={money} rg={rg} />
       <RegionSheet visible={!!regionSheet} fromButton={regionSheet === 'button'} onSkip={() => setRegionSheet(null)}
         onApply={applyRegion} theme={theme} t={t} font={font} rtl={rtl} lang={lang} />
 
@@ -1244,10 +1511,10 @@ const CalculatorScreen = () => {
             </View>
           </View>
           <View style={[styles.resultValueRow, { flexDirection: row }]}>
-            <Text style={[styles.resultValue, num(800), compact && { fontSize: 38 }, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit>
+            <Text style={[styles.resultValue, num(800), { fontSize: heroSize(money(result.final).length, compact) }, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit>
               {money(result.final)}
             </Text>
-            {result.savings > 0 && <Text style={[styles.resultStrike, num(600), { color: theme.textMuted }]}>{money(result.original)}</Text>}
+            {result.savings > 0 && <Text numberOfLines={1} style={[styles.resultStrike, num(600), { color: theme.textMuted }]}>{money(result.original)}</Text>}
           </View>
           <View style={[styles.resultBottom, { flexDirection: row }]}>
             {result.savings > 0 ? (
@@ -1257,7 +1524,9 @@ const CalculatorScreen = () => {
             ) : result.original <= 0 ? (
               <Text style={[styles.resultSave, font(600), { color: theme.textSecondary, textAlign: align }]}>{t.enterPrice}</Text>
             ) : <View style={{ flex: 1 }} />}
-            {result.qty > 1 && result.unit > 0 ? (
+            {result.spendShort > 0 && result.unit > 0 ? (
+              <Text style={[styles.resultTax, font(700), { color: theme.save }]}>{t.spendShort(money(result.spendShort))}</Text>
+            ) : result.qty > 1 && result.unit > 0 ? (
               <Text style={[styles.resultTax, font(600), { color: theme.textSecondary }]}>{t.forItems(result.qty, money(result.perItem))}</Text>
             ) : result.tax > 0 && !compact ? (
               <Text style={[styles.resultTax, font(600), { color: theme.textSecondary }]}>{t.inclTax(money(result.tax))}</Text>
@@ -1270,7 +1539,7 @@ const CalculatorScreen = () => {
           style={({ pressed }) => [styles.fxBar, { flexDirection: row, backgroundColor: pressed ? theme.glassStrong : theme.glass, borderColor: theme.glassBorder }]}>
           <Ionicons name="swap-horizontal" size={16} color={converted ? theme.save : theme.textSecondary} />
           <Text numberOfLines={1} style={[styles.fxBarText, converted ? num(800) : font(700), { color: converted ? theme.text : theme.textSecondary, textAlign: align }]}>
-            {converted ? t.fxApprox(converted) : home && fxRate == null && rg.cur && home.cur !== rg.cur ? (fx.loading ? t.fxLoading : t.fxFailed) : t.fxPrompt}
+            {converted ? t.fxApprox(converted) : needsConfirm ? t.fxConfirmPrompt(home.cur) : pairReady && fxRate == null ? (fx.loading ? t.fxLoading : t.fxFailed) : t.fxPrompt}
           </Text>
           {converted ? <Text numberOfLines={1} style={[styles.fxBarRate, num(600), { color: theme.textSecondary }]}>{t.fxRate(rg.cur, fmtRate(fxRate), home.cur)}</Text> : null}
           <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={theme.textMuted} />
@@ -1308,7 +1577,7 @@ const CalculatorScreen = () => {
                     style={({ pressed }) => [styles.fieldRow, { minHeight: 50, flexDirection: row, backgroundColor: pressed ? theme.glass : 'transparent', borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
                     <Ionicons name="pricetags-outline" size={17} color={form.deal.type === 'none' ? theme.textSecondary : theme.save} />
                     <Text numberOfLines={1} style={[styles.fieldLabel, font(700), { color: form.deal.type === 'none' ? theme.textSecondary : theme.save, textAlign: align }]}>
-                      {form.deal.type === 'none' ? `${t.deal} · ${t.dealAdd}` : dealText(form.deal, t)}
+                      {form.deal.type === 'none' ? `${t.deal} · ${t.dealAdd}` : dealText(form.deal, t, money)}
                     </Text>
                     <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={17} color={theme.textMuted} />
                   </Pressable>
@@ -1406,7 +1675,7 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 12.5 },
   resultValueRow: { alignItems: 'baseline', gap: 10 },
   resultValue: { fontSize: 46, letterSpacing: -1.2, flexShrink: 1 },
-  resultStrike: { fontSize: 16, textDecorationLine: 'line-through' },
+  resultStrike: { fontSize: 15, textDecorationLine: 'line-through', flexShrink: 1 },
   resultBottom: { alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' },
   resultSave: { fontSize: 14, flexShrink: 1 },
   resultTax: { fontSize: 13 },
@@ -1466,13 +1735,24 @@ const styles = StyleSheet.create({
   regionRow: { minHeight: 56, paddingHorizontal: 16, paddingVertical: 8, alignItems: 'center', gap: 10 },
   regionName: { fontSize: 16 },
   regionMeta: { fontSize: 13, marginTop: 1 },
-  textInput: { height: 52, borderRadius: 16, borderWidth: 1, paddingHorizontal: 16, fontSize: 17 },
+  textInput: { height: 52, borderRadius: 16, borderWidth: 1, paddingHorizontal: 16, fontSize: 17, ...(Platform.OS === 'web' ? { outlineStyle: 'none', minWidth: 0 } : null) },
   fxBar: { marginHorizontal: 16, marginTop: 8, minHeight: 38, borderRadius: 19, borderWidth: 1, paddingHorizontal: 14, alignItems: 'center', gap: 8 },
   fxBarText: { flex: 1, fontSize: 14 },
   fxBarRate: { fontSize: 12, flexShrink: 1, maxWidth: '50%' },
   fxRateText: { fontSize: 20 },
   fxSource: { fontSize: 11, textAlign: 'center' },
-  sheetTall: { maxHeight: '88%' },
+  searchBox: { height: 48, borderRadius: 16, borderWidth: 1, paddingHorizontal: 14, alignItems: 'center', gap: 8 },
+  searchInput: { flex: 1, height: '100%', fontSize: 15, paddingVertical: 0, ...(Platform.OS === 'web' ? { outlineStyle: 'none', width: 0 } : null) },
+  listHeader: { fontSize: 11, letterSpacing: 1.2, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+  regionCode: { fontSize: 12 },
+  curCode: { fontSize: 15, minWidth: 44 },
+  emptyText: { fontSize: 14, textAlign: 'center', padding: 20 },
+  sectionLabel: { fontSize: 11, letterSpacing: 1.2 },
+  templateChip: { paddingHorizontal: 14 },
+  amountBox: { height: 48, minWidth: 130, borderRadius: 14, paddingHorizontal: 12, alignItems: 'center', gap: 6 },
+  amountSym: { fontSize: 14 },
+  amountInput: { flex: 1, height: '100%', fontSize: 18, paddingVertical: 0, textAlign: 'right', ...(Platform.OS === 'web' ? { outlineStyle: 'none', width: 0 } : null) },
+  sheetTall: { maxHeight: '92%' },
 
   // Sheets
   dim: { flex: 1, justifyContent: 'flex-end' },
