@@ -123,21 +123,20 @@ const translations = {
   en: {
     appTitle: 'Shopping Calculator',
     welcomeLines: ['Shop smart.', 'Know the real price.', 'Hassle-free.'],
-    simple: 'Simple', stacked: 'Stacked',
     price: 'Price', discount: 'Discount',
-    discountN: (n) => (n === 1 ? 'First discount' : 'Second discount'),
     tax: 'VAT / tax',
     pctOrAmt: (s) => `Tap % or ${s} to switch`, amt: 'Amt',
-    deal: 'Multi-buy deal', dealAdd: 'Add a deal',
-    dealTypes: { none: 'No deal', free: 'Buy X get Y free', pct: 'Buy X get Y % off', bundle: 'X for a price', bulk: 'Buy more, save %', spend: 'Spend & save' },
-    dealQuick: 'COMMON OFFERS', dealKind: 'OR SET IT UP',
+    deal: 'Store offer', dealAdd: 'Add an offer', dealAddShort: 'e.g. buy 1 get 1',
+    dealTypes: { none: 'No offer', free: 'Free items', pct: 'Discount on extra items', bundle: 'Bundle price', bulk: 'Quantity discount', spend: 'Spend & save' },
+    dealExample: { none: 'Pay the normal price for one item.', free: 'Example: buy 2, get 1 free', pct: 'Example: buy 1, get the 2nd at 50% off', bundle: 'Example: 3 for AED 100', bulk: 'Example: buy 3 or more, 20% off all', spend: 'Example: spend AED 200, save AED 50' },
+    dealQuick: 'QUICK PICKS', dealKind: 'SET THE DEAL CRITERIA', getFree: 'You get free', getDisc: 'Discounted items',
     dealTpl: { b1g1: 'Buy 1 get 1 free', second50: '2nd at 50% off', b2g1: 'Buy 2 get 1 free', b1g1_25: '2nd at 25% off', bundle3: '3 for a price', bulk3: 'Buy 3, save 20%', spend: 'Spend & save' },
     dealSecond: (p) => `Buy 1, get the 2nd ${p}% off`,
     dealBundle: (n, a) => `${n} for ${a}`, dealBundleSet: (n) => `${n} for … (enter the price)`,
     dealBulk: (n, p) => `Buy ${n}+, save ${p}%`,
     dealSpend: (min, off) => `Spend ${min}, save ${off}`, dealSpendSet: 'Spend & save (enter the amounts)',
-    dealItems: 'Items', dealFor: 'For', dealAtLeast: 'Buy at least', dealOffAll: 'Discount on all items',
-    dealSpendMin: 'Spend at least', dealSpendOff: 'You save',
+    dealItems: 'Number of items', dealFor: 'Bundle price', dealAtLeast: 'Minimum items', dealOffAll: 'Discount on all items',
+    dealSpendMin: 'Minimum spend', dealSpendOff: 'You save',
     spendShort: (a) => `Add ${a} more to unlock the deal`,
     searchCountry: 'Search country or currency (e.g. AED)', searchCurrency: 'Search currency or country (e.g. USD)',
     popular: 'POPULAR', allCountries: 'ALL COUNTRIES', allCurrencies: 'ALL CURRENCIES', noResults: 'No matches',
@@ -145,12 +144,13 @@ const translations = {
     fxToday: "TODAY'S RATE", fxConfirm: 'Use this rate', fxInUse: 'In use', fxChange: 'Change',
     fxOwnTitle: 'OR ENTER YOUR OWN RATE (E.G. FROM YOUR BANK)', fxUseOwn: 'Use my rate', fxUpdateOwn: 'Update my rate',
     fxTurnOff: 'Turn off conversion', fxConfirmPrompt: (c) => `Confirm the ${c} rate`,
+    fxInHome: (c) => `IN YOUR CURRENCY (${c})`, fxInHomeEmpty: 'SHOPPING ABROAD?', fxPromptCard: 'See this price in your own currency', fxSetUp: 'Set up', fxConfirmShort: 'Confirm',
     hideKeypad: 'Hide keypad', tapToEdit: 'Tap a row to enter a value',
     vatSaveDefault: (v) => `Save ${v}% as default VAT`, vatSaved: 'Default VAT saved',
     vatEdit: 'VAT rate (%) — edit if it’s not right',
     dealFree: (b, g) => `Buy ${b} get ${g} free`,
     dealPct: (b, g, p) => `Buy ${b}, get ${g} at ${p}% off`,
-    buy: 'Buy', get: 'Get', dealOff: 'Discount on those', dealHint: 'The price you enter is for one item.',
+    buy: 'You buy', get: 'You get', dealOff: 'Discount on them', dealHint: 'The price you enter is for one item.',
     forItems: (n, each) => `for ${n} items · ${each} each`, perItem: 'Per item',
     regionTitle: 'Where are you shopping?',
     regionSub: 'Sets the currency and the VAT rate. You can change it any time.',
@@ -181,7 +181,6 @@ const translations = {
     priceHint: 'Tap the camera to scan a price tag',
     breakdown: 'Breakdown', original: 'Original price', subtotal: 'Subtotal', total: 'Total',
     effective: 'Effective discount',
-    stackedNote: (parts, eq) => `${parts} stacked = ${eq}% off. Discounts apply one after another, so they don't add up.`,
     next: 'Next', clearField: 'C', backspace: 'Delete',
     switchType: 'Switch between percent and amount',
     takePhoto: 'Take photo', chooseGallery: 'Choose from gallery', cancel: 'Cancel',
@@ -193,21 +192,20 @@ const translations = {
   ar: {
     appTitle: 'حاسبة التسوق',
     welcomeLines: ['تسوّق بذكاء.', 'اعرف السعر الحقيقي.', 'بلا عناء.'],
-    simple: 'بسيط', stacked: 'خصم مركب',
     price: 'السعر', discount: 'الخصم',
-    discountN: (n) => (n === 1 ? 'الخصم الأول' : 'الخصم الثاني'),
     tax: 'الضريبة',
     pctOrAmt: (s) => `اضغط % أو ${s} للتبديل`, amt: 'مبلغ',
-    deal: 'عرض الشراء المتعدد', dealAdd: 'إضافة عرض',
-    dealTypes: { none: 'بدون عرض', free: 'اشترِ واحصل مجاناً', pct: 'اشترِ واحصل بخصم %', bundle: 'عدد بسعر', bulk: 'اشترِ أكثر ووفّر %', spend: 'أنفق ووفّر' },
-    dealQuick: 'عروض شائعة', dealKind: 'أو اضبطه بنفسك',
+    deal: 'عرض المتجر', dealAdd: 'إضافة عرض', dealAddShort: 'مثل: اشترِ 1 واحصل على 1',
+    dealTypes: { none: 'بدون عرض', free: 'قطع مجانية', pct: 'خصم على قطع إضافية', bundle: 'سعر الحزمة', bulk: 'خصم الكمية', spend: 'أنفق ووفّر' },
+    dealExample: { none: 'ادفع السعر العادي لقطعة واحدة.', free: 'مثال: اشترِ 2 واحصل على 1 مجاناً', pct: 'مثال: اشترِ 1 والثانية بخصم 50%', bundle: 'مثال: 3 قطع بـ 100 درهم', bulk: 'مثال: اشترِ 3 أو أكثر بخصم 20% على الكل', spend: 'مثال: أنفق 200 درهم ووفّر 50' },
+    dealQuick: 'اختيارات سريعة', dealKind: 'حدد شروط العرض', getFree: 'تحصل مجاناً على', getDisc: 'القطع المخفّضة',
     dealTpl: { b1g1: 'اشترِ 1 واحصل على 1 مجاناً', second50: 'الثانية بخصم 50%', b2g1: 'اشترِ 2 واحصل على 1 مجاناً', b1g1_25: 'الثانية بخصم 25%', bundle3: '3 بسعر', bulk3: 'اشترِ 3 ووفّر 20%', spend: 'أنفق ووفّر' },
     dealSecond: (p) => `اشترِ 1 والثانية بخصم ${p}%`,
     dealBundle: (n, a) => `${n} بسعر ‎${a}‏`, dealBundleSet: (n) => `${n} بسعر … (أدخل السعر)`,
     dealBulk: (n, p) => `اشترِ ${n} أو أكثر ووفّر ${p}%`,
     dealSpend: (min, off) => `أنفق ‎${min}‏ ووفّر ‎${off}‏`, dealSpendSet: 'أنفق ووفّر (أدخل المبالغ)',
-    dealItems: 'عدد القطع', dealFor: 'بسعر', dealAtLeast: 'اشترِ على الأقل', dealOffAll: 'الخصم على كل القطع',
-    dealSpendMin: 'أنفق على الأقل', dealSpendOff: 'توفّر',
+    dealItems: 'عدد القطع', dealFor: 'سعر الحزمة', dealAtLeast: 'الحد الأدنى للقطع', dealOffAll: 'الخصم على كل القطع',
+    dealSpendMin: 'الحد الأدنى للإنفاق', dealSpendOff: 'توفّر',
     spendShort: (a) => `أضف ‎${a}‏ للحصول على العرض`,
     searchCountry: 'ابحث عن دولة أو عملة (مثل AED)', searchCurrency: 'ابحث عن عملة أو دولة (مثل USD)',
     popular: 'الأكثر استخداماً', allCountries: 'كل الدول', allCurrencies: 'كل العملات', noResults: 'لا توجد نتائج',
@@ -215,12 +213,13 @@ const translations = {
     fxToday: 'سعر اليوم', fxConfirm: 'استخدام هذا السعر', fxInUse: 'مستخدم', fxChange: 'تغيير',
     fxOwnTitle: 'أو أدخل سعرك الخاص (مثلاً من بنكك)', fxUseOwn: 'استخدام سعري', fxUpdateOwn: 'تحديث سعري',
     fxTurnOff: 'إيقاف التحويل', fxConfirmPrompt: (c) => `أكّد سعر ${c}`,
+    fxInHome: (c) => `بعملتك (${c})`, fxInHomeEmpty: 'تتسوق في الخارج؟', fxPromptCard: 'اعرف هذا السعر بعملتك', fxSetUp: 'إعداد', fxConfirmShort: 'تأكيد',
     hideKeypad: 'إخفاء لوحة الأرقام', tapToEdit: 'اضغط على خانة لإدخال قيمة',
     vatSaveDefault: (v) => `حفظ \u200E${v}%\u200F كضريبة افتراضية`, vatSaved: 'تم حفظ الضريبة الافتراضية',
     vatEdit: 'نسبة الضريبة (%) — عدّلها إن لم تكن صحيحة',
     dealFree: (b, g) => `اشترِ ${b} واحصل على ${g} مجاناً`,
     dealPct: (b, g, p) => `اشترِ ${b} واحصل على ${g} بخصم ${p}%`,
-    buy: 'اشترِ', get: 'احصل على', dealOff: 'الخصم عليها', dealHint: 'السعر الذي تدخله لقطعة واحدة.',
+    buy: 'تشتري', get: 'تحصل على', dealOff: 'الخصم عليها', dealHint: 'السعر الذي تدخله لقطعة واحدة.',
     forItems: (n, each) => `لـ ${n} قطع · ‎${each}‏ للقطعة`, perItem: 'سعر القطعة',
     regionTitle: 'أين تتسوق؟',
     regionSub: 'يحدد العملة ونسبة الضريبة. يمكنك تغييره في أي وقت.',
@@ -251,7 +250,6 @@ const translations = {
     priceHint: 'اضغط على الكاميرا لمسح بطاقة السعر',
     breakdown: 'التفاصيل', original: 'السعر الأصلي', subtotal: 'المجموع قبل الضريبة', total: 'الإجمالي',
     effective: 'الخصم الفعلي',
-    stackedNote: (parts, eq) => `${parts} متراكم = ${eq}% فعلياً. الخصومات تُطبَّق بالتسلسل ولا تُجمع.`,
     next: 'التالي', clearField: 'C', backspace: 'حذف',
     switchType: 'التبديل بين النسبة والمبلغ',
     takePhoto: 'التقاط صورة', chooseGallery: 'اختيار من المعرض', cancel: 'إلغاء',
@@ -593,7 +591,7 @@ const ScanSheet = ({ visible, onClose, onResult, theme, t, font }) => {
   );
 };
 
-const DetailsSheet = ({ visible, onClose, theme, t, rtl, result, stepLabel, stackNote, font, money, converted }) => {
+const DetailsSheet = ({ visible, onClose, theme, t, rtl, result, stepLabel, font, money, converted }) => {
   const row = flow(rtl);
   const Line = ({ label, value, color, bold, last }) => (
     <View style={[styles.detailRow, { flexDirection: row }, !last && { borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
@@ -621,7 +619,6 @@ const DetailsSheet = ({ visible, onClose, theme, t, rtl, result, stepLabel, stac
         {result.savings > 0 && <Line label={t.effective} value={`${result.savingsPct.toFixed(1)}%`} color={theme.save} last={!converted} />}
         {!!converted && <Line label={t.fxIn} value={t.fxApprox(converted)} last />}
       </View>
-      {stackNote && <Text style={[styles.note, font(400), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{stackNote}</Text>}
     </SheetFrame>
   );
 };
@@ -829,12 +826,13 @@ const DealSheet = ({ visible, onClose, deal, onChange, theme, t, font, rtl, mone
             })}
           </View>
 
+          <Text style={[styles.dealExample, font(600), { color: theme.save, textAlign: rtl ? 'right' : 'left' }]}>{t.dealExample[deal.type]}</Text>
           {deal.type !== 'none' && (
             <View style={[styles.glassCard, { backgroundColor: theme.glass, borderColor: theme.glassBorder, padding: 14, gap: 12 }]}>
               {(deal.type === 'free' || deal.type === 'pct') && (
                 <>
                   <Stepper label={t.buy} value={deal.buy} onChange={(buy) => set({ buy })} theme={theme} font={font} rtl={rtl} />
-                  <Stepper label={t.get} value={deal.get} onChange={(get) => set({ get })} theme={theme} font={font} rtl={rtl} />
+                  <Stepper label={deal.type === 'free' ? t.getFree : t.getDisc} value={deal.get} onChange={(get) => set({ get })} theme={theme} font={font} rtl={rtl} />
                 </>
               )}
               {deal.type === 'pct' && (
@@ -1174,6 +1172,9 @@ const restoreForm = (raw) => {
   };
 };
 const UNDO_MS = 5000;
+// Home-currency layout: 'card' (own card under the price), 'inline' (inside the price
+// card), 'bar' (slim bar). The web preview can pick one with ?fx=… to compare.
+const FX_STYLE = (Platform.OS === 'web' && typeof location !== 'undefined' && new URLSearchParams(location.search).get('fx')) || 'card';
 // Big total: smaller type for long amounts so it and the old price fit one line.
 const heroSize = (len, compact) => Math.round((len > 12 ? 32 : len > 9 ? 38 : 46) * (compact ? 0.85 : 1));
 
@@ -1184,7 +1185,6 @@ const CalculatorScreen = () => {
   const [fontsLoaded] = useFonts({ Manrope_400Regular, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold });
   const [isDark, setIsDark] = useState(null);
   const [lang, setLang] = useState('en');
-  const [mode, setMode] = useState('simple');
   const [loaded, setLoaded] = useState(false);
 
   const [form, setForm] = useState(emptyForm);
@@ -1213,12 +1213,11 @@ const CalculatorScreen = () => {
   useEffect(() => {
     (async () => {
       try {
-        const [savedTheme, savedLang, savedMode, savedRegion, savedForm, savedHome, savedFxManual, savedFxConfirmed] = await Promise.all(
-          ['theme', 'lang', 'mode', 'region', 'form', 'home', 'fxManual', 'fxConfirmed'].map((k) => AsyncStorage.getItem(k))
+        const [savedTheme, savedLang, savedRegion, savedForm, savedHome, savedFxManual, savedFxConfirmed] = await Promise.all(
+          ['theme', 'lang', 'region', 'form', 'home', 'fxManual', 'fxConfirmed'].map((k) => AsyncStorage.getItem(k))
         );
         setIsDark(savedTheme !== null ? savedTheme === 'dark' : systemScheme !== 'light');
         if (savedLang && translations[savedLang]) setLang(savedLang);
-        if (savedMode === 'simple' || savedMode === 'stacked') setMode(savedMode);
         const h = savedHome ? JSON.parse(savedHome) : null;
         if (h && h.cur) setHome(h);
         if (savedFxManual) setFxManual(JSON.parse(savedFxManual) || {});
@@ -1257,13 +1256,11 @@ const CalculatorScreen = () => {
   };
   const toggleTheme = () => { haptic.select(); setIsDark((d) => { persist('theme', d ? 'light' : 'dark'); return !d; }); };
   const toggleLang = () => { haptic.select(); setLang((l) => { const n = l === 'en' ? 'ar' : 'en'; persist('lang', n); return n; }); };
-  const changeMode = (m) => { setMode(m); persist('mode', m); };
 
   const theme = isDark === false ? lightTheme : darkTheme;
   const t = translations[lang];
   const rtl = lang === 'ar';
   const font = makeFont(!rtl);
-  const stacked = mode === 'stacked';
   const compact = height < 720;
   const rg = region || NO_REGION;
   const money = (n) => fmtMoney(n, rg);
@@ -1318,20 +1315,20 @@ const CalculatorScreen = () => {
   // Ordered list of editable fields; "Next" walks through it.
   const fields = useMemo(() => {
     const list = [{ key: 'price', kind: 'price', label: t.price, dot: theme.dotPrice, value: form.price, type: 'amt', adjustable: false }];
-    form.discounts.slice(0, stacked ? 2 : 1).forEach((d, i) => list.push({
-      key: `d${i}`, kind: 'discount', label: stacked ? t.discountN(i + 1) : t.discount,
+    form.discounts.slice(0, 1).forEach((d, i) => list.push({
+      key: `d${i}`, kind: 'discount', label: t.discount,
       dot: theme.dotDiscount, value: d.value, type: d.type, adjustable: true,
     }));
     list.push({ key: 'tax', kind: 'tax', label: t.tax, dot: theme.dotTax, value: form.tax, type: 'pct', adjustable: false });
     return list;
-  }, [form, stacked, t, theme]);
+  }, [form, t, theme]);
 
   const current = fields.find((f) => f.key === selected) || fields[0];
-  const lastDiscountKey = stacked ? 'd1' : 'd0';
+  const lastDiscountKey = 'd0';
   const lastDiscountKeyRef = useRef(lastDiscountKey);
   lastDiscountKeyRef.current = lastDiscountKey;
 
-  // If the selected field disappears (mode switched), fall back to price.
+  // If the selected field disappears, fall back to price.
   useEffect(() => {
     if (!fields.some((f) => f.key === selected)) setSelected('price');
   }, [fields, selected]);
@@ -1428,28 +1425,21 @@ const CalculatorScreen = () => {
 
   const result = useMemo(() => calculate({
     price: form.price,
-    discounts: form.discounts.slice(0, stacked ? 2 : 1),
+    discounts: form.discounts.slice(0, 1),
     tax: form.tax,
     deal: form.deal,
-  }), [form, stacked]);
+  }), [form]);
 
   const canReset = !!(form.price || form.discounts.some((d) => d.value)
     || form.deal.type !== 'none' || form.tax !== (rg.vat > 0 ? String(rg.vat) : ''));
 
   const adjText = (s) => (s.type === 'pct' ? `${trimNum(s.value)}%` : money(s.value));
   const stepLabel = (s) => {
-    if (s.kind === 'discount') return `${stacked ? t.discountN(s.index + 1) : t.discount} (${adjText(s)})`;
+    if (s.kind === 'discount') return `${t.discount} (${adjText(s)})`;
     if (s.kind === 'deal') return dealText(form.deal, t, money);
     return `${t.tax} (${trimNum(s.value)}%)`;
   };
   const converted = fxRate && result.original > 0 ? fmtMoney(result.final * fxRate, homeRegion) : '';
-  const pctDiscounts = result.steps.filter((s) => s.kind === 'discount' && s.type === 'pct');
-  const stackNote = stacked && pctDiscounts.length >= 2
-    ? t.stackedNote(
-      pctDiscounts.map((s) => `${trimNum(s.value)}%`).join(' + '),
-      (100 * (1 - pctDiscounts.reduce((acc, s) => acc * (1 - s.value / 100), 1))).toFixed(1),
-    )
-    : null;
 
   // Size keys to the screen so the keypad fits small and large phones.
   const keyH = Math.max(42, Math.min(54, Math.round(height * 0.06)));
@@ -1463,6 +1453,45 @@ const CalculatorScreen = () => {
   const presets = current.kind === 'tax' ? taxPicks
     : current.adjustable && current.type === 'pct' ? DISCOUNT_PICKS : null;
   const lastFieldKey = fields[fields.length - 1].key;
+  const openFx = () => { haptic.select(); setFxVisible(true); };
+  const fxStatus = needsConfirm ? t.fxConfirmPrompt(home.cur) : pairReady && fxRate == null ? (fx.loading ? t.fxLoading : t.fxFailed) : null;
+  const fxRateLine = converted ? t.fxRate(rg.cur, fmtRate(fxRate), home.cur) : '';
+  // Option 1: its own card. Home currency code badge, the converted price large, the rate below.
+  const fxCard = (
+    <Pressable onPress={openFx} style={({ pressed }) => [styles.glassCard, styles.fxCard, { flexDirection: row, backgroundColor: pressed ? theme.glassStrong : theme.glass, borderColor: theme.glassBorder }]}>
+      <View style={[styles.fxBadge, { backgroundColor: converted ? theme.solid : theme.glassStrong }]}>
+        {home ? <Text style={[styles.fxBadgeText, num(800), { color: converted ? theme.onSolid : theme.text }]}>{home.cur}</Text>
+          : <Ionicons name="globe-outline" size={20} color={theme.text} />}
+      </View>
+      <View style={{ flex: 1, gap: 1 }}>
+        <Text style={[styles.fxCardLabel, font(700), { color: theme.textSecondary, textAlign: align }]}>{home ? t.fxInHome(home.cur) : t.fxInHomeEmpty}</Text>
+        {converted ? (
+          <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.fxCardValue, num(800), { color: theme.text, textAlign: align }]}>{t.fxApprox(converted)}</Text>
+        ) : (
+          <Text numberOfLines={2} style={[styles.fxCardHint, font(700), { color: fxStatus ? theme.save : theme.text, textAlign: align }]}>{fxStatus || t.fxPromptCard}</Text>
+        )}
+        {!!converted && <Text numberOfLines={1} style={[styles.fxCardRate, num(600), { color: theme.textSecondary, textAlign: align }]}>{fxRateLine}</Text>}
+      </View>
+      <View style={[styles.pill, { backgroundColor: theme.glassStrong }]}>
+        <Text style={[styles.pillText, font(700), { color: theme.text }]}>{!home ? t.fxSetUp : needsConfirm ? t.fxConfirmShort : t.fxChange}</Text>
+      </View>
+    </Pressable>
+  );
+  // Option 2: a line at the bottom of the price card.
+  const fxInline = (
+    <Pressable onPress={openFx} style={({ pressed }) => [styles.fxInline, { flexDirection: row, borderTopColor: theme.separator, opacity: pressed ? 0.7 : 1 }]}>
+      <Ionicons name="swap-horizontal" size={16} color={converted ? theme.save : theme.textSecondary} />
+      {converted ? (
+        <>
+          <Text numberOfLines={1} style={[styles.fxInlineValue, num(800), { color: theme.save }]}>{t.fxApprox(converted)}</Text>
+          <Text numberOfLines={1} style={[styles.fxBarRate, num(600), { color: theme.textSecondary, flex: 1, textAlign: rtl ? 'left' : 'right' }]}>{fxRateLine}</Text>
+        </>
+      ) : (
+        <Text numberOfLines={1} style={[styles.fxBarText, font(700), { color: fxStatus ? theme.save : theme.textSecondary, textAlign: align }]}>{fxStatus || t.fxPrompt}</Text>
+      )}
+      <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={theme.textMuted} />
+    </Pressable>
+  );
   const glassCard = { backgroundColor: theme.glass, borderColor: theme.glassBorder };
 
   return (
@@ -1475,7 +1504,7 @@ const CalculatorScreen = () => {
           if (discount) updateField('d0', () => ({ value: discount, type: 'pct' }));
         }} />
       <DetailsSheet visible={detailsVisible} onClose={() => setDetailsVisible(false)} theme={theme} t={t} rtl={rtl}
-        result={result} stepLabel={stepLabel} stackNote={stackNote} font={font} money={money} converted={converted} />
+        result={result} stepLabel={stepLabel} font={font} money={money} converted={converted} />
       <FxSheet visible={fxVisible} onClose={() => setFxVisible(false)} rg={rg} home={home} onHome={chooseHome}
         fx={fx.base === rg.cur ? fx : { rates: null, time: 0, loading: fx.loading, error: fx.error }}
         onRefresh={() => loadRates(true)} manual={manualRate} onManual={setManual}
@@ -1503,10 +1532,6 @@ const CalculatorScreen = () => {
           <GlassIcon name={theme.dark ? 'sunny-outline' : 'moon-outline'} onPress={toggleTheme} theme={theme} label={t.appearance} />
         </View>
 
-        <View style={styles.segWrap}>
-          <Segmented options={[{ value: 'simple', label: t.simple }, { value: 'stacked', label: t.stacked }]}
-            value={mode} onChange={changeMode} theme={theme} rtl={rtl} font={font} />
-        </View>
 
         {/* Result */}
         <View style={[styles.glassCard, styles.resultCard, glassCard, compact && { paddingVertical: 10 }]}>
@@ -1546,9 +1571,11 @@ const CalculatorScreen = () => {
               <Text style={[styles.resultTax, font(600), { color: theme.textSecondary }]}>{t.inclTax(money(result.tax))}</Text>
             ) : null}
           </View>
+          {FX_STYLE === 'inline' && fxInline}
         </View>
 
-        {/* Home-currency conversion */}
+        {FX_STYLE === 'card' && fxCard}
+        {FX_STYLE === 'bar' && (
         <Pressable onPress={() => { haptic.select(); setFxVisible(true); }}
           style={({ pressed }) => [styles.fxBar, { flexDirection: row, backgroundColor: pressed ? theme.glassStrong : theme.glass, borderColor: theme.glassBorder }]}>
           <Ionicons name="swap-horizontal" size={16} color={converted ? theme.save : theme.textSecondary} />
@@ -1558,6 +1585,8 @@ const CalculatorScreen = () => {
           {converted ? <Text numberOfLines={1} style={[styles.fxBarRate, num(600), { color: theme.textSecondary }]}>{t.fxRate(rg.cur, fmtRate(fxRate), home.cur)}</Text> : null}
           <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={theme.textMuted} />
         </Pressable>
+
+        )}
 
         {/* Fields */}
         <ScrollView
@@ -1583,8 +1612,9 @@ const CalculatorScreen = () => {
                     style={({ pressed }) => [styles.fieldRow, { minHeight: 50, flexDirection: row, backgroundColor: pressed ? theme.glass : 'transparent', borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
                     <Ionicons name="pricetags-outline" size={17} color={form.deal.type === 'none' ? theme.textSecondary : theme.save} />
                     <Text numberOfLines={1} style={[styles.fieldLabel, font(700), { color: form.deal.type === 'none' ? theme.textSecondary : theme.save, textAlign: align }]}>
-                      {form.deal.type === 'none' ? `${t.deal} · ${t.dealAdd}` : dealText(form.deal, t, money)}
+                      {form.deal.type === 'none' ? t.deal : dealText(form.deal, t, money)}
                     </Text>
+                    {form.deal.type === 'none' && <Text style={[styles.rowHint, font(600), { color: theme.textMuted }]}>{t.dealAddShort}</Text>}
                     <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={17} color={theme.textMuted} />
                   </Pressable>
                 )}
@@ -1762,6 +1792,17 @@ const styles = StyleSheet.create({
   regionName: { fontSize: 16 },
   regionMeta: { fontSize: 13, marginTop: 1 },
   textInput: { height: 52, borderRadius: 16, borderWidth: 1, paddingHorizontal: 16, fontSize: 17, ...(Platform.OS === 'web' ? { outlineStyle: 'none', minWidth: 0 } : null) },
+  fxCard: { marginHorizontal: 16, marginTop: 10, paddingHorizontal: 14, paddingVertical: 12, alignItems: 'center', gap: 12 },
+  fxBadge: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  fxBadgeText: { fontSize: 13 },
+  fxCardLabel: { fontSize: 11, letterSpacing: 1 },
+  fxCardValue: { fontSize: 26, letterSpacing: -0.5 },
+  fxCardHint: { fontSize: 15 },
+  fxCardRate: { fontSize: 12 },
+  fxInline: { marginTop: 10, paddingTop: 10, borderTopWidth: HAIRLINE, alignItems: 'center', gap: 8 },
+  fxInlineValue: { fontSize: 18 },
+  dealExample: { fontSize: 13 },
+  rowHint: { fontSize: 13 },
   fxBar: { marginHorizontal: 16, marginTop: 8, minHeight: 38, borderRadius: 19, borderWidth: 1, paddingHorizontal: 14, alignItems: 'center', gap: 8 },
   fxBarText: { flex: 1, fontSize: 14 },
   fxBarRate: { fontSize: 12, flexShrink: 1, maxWidth: '50%' },
