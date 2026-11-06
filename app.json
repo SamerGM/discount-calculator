@@ -18,7 +18,7 @@
         "backgroundColor": "#1E1744"
       },
       "package": "com.samer.discountcalculator",
-      "versionCode": 28,
+      "versionCode": 29,
       "targetSdkVersion": 36,
       "edgeToEdgeEnabled": true
     },
