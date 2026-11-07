@@ -95,16 +95,21 @@ const NO_REGION = { id: '', cur: '', sym: '', dec: 2, vat: null };
 // ─── Theme: frosted panels over an aurora gradient ────────────────────────────
 // The background is a static gradient, so translucent fills give the frosted look
 // without a live blur (which is slow on many Android phones).
+// Brand colours: welcome screen and splash (must match the native splash colour).
+const brandTheme = {
+  base: '#1E1744', blobA: '#FF7A59', blobB: '#7B5CFF', blobC: '#00C2A8', glow: 1,
+};
+// Dark mode: near-black base, softer glow, darker glass.
 const darkTheme = {
   dark: true,
-  base: '#1E1744', blobA: '#FF7A59', blobB: '#7B5CFF', blobC: '#00C2A8',
-  text: '#FFFFFF', textSecondary: 'rgba(255,255,255,0.74)', textMuted: 'rgba(255,255,255,0.45)',
-  glass: 'rgba(255,255,255,0.13)', glassStrong: 'rgba(255,255,255,0.26)', glassBorder: 'rgba(255,255,255,0.26)',
-  separator: 'rgba(255,255,255,0.14)', solid: '#FFFFFF', onSolid: '#241B4D',
+  base: '#07050F', blobA: '#C2553E', blobB: '#5A44C4', blobC: '#00927F', glow: 0.55,
+  text: '#FFFFFF', textSecondary: 'rgba(255,255,255,0.72)', textMuted: 'rgba(255,255,255,0.42)',
+  glass: 'rgba(255,255,255,0.07)', glassStrong: 'rgba(255,255,255,0.16)', glassBorder: 'rgba(255,255,255,0.14)',
+  separator: 'rgba(255,255,255,0.10)', solid: '#FFFFFF', onSolid: '#14102B',
   save: '#B9FFE9', danger: '#FF9C9C',
   dotPrice: '#FFFFFF', dotDiscount: '#B9FFE9', dotTax: '#FFA3BE',
-  tray: 'rgba(14,9,38,0.45)', key: 'rgba(255,255,255,0.12)', keyFn: 'rgba(255,255,255,0.22)', keyDown: 'rgba(255,255,255,0.32)',
-  sheet: '#2A2160', dim: 'rgba(8,5,24,0.55)',
+  tray: 'rgba(4,3,10,0.72)', key: 'rgba(255,255,255,0.08)', keyFn: 'rgba(255,255,255,0.15)', keyDown: 'rgba(255,255,255,0.26)',
+  sheet: '#120E22', dim: 'rgba(0,0,0,0.65)',
 };
 const lightTheme = {
   dark: false,
@@ -133,7 +138,8 @@ const translations = {
     scanFoundTitle: 'WE READ THIS OFFER', scanFromSign: (r) => `From the sign: “${r}”`, scanIsCorrect: 'Is this correct?',
     scanYes: 'Yes, use it', scanNo: 'No, I’ll set it', scanNoOffer: 'No offer found on this photo. Try again or set it below.',
     removeOffer: 'Remove offer', permNeeded: 'Camera or gallery permission is needed.',
-    dealQuick: 'POPULAR OFFERS', dealKind: 'SET THE OFFER CRITERIA', getFree: 'You get free', getDisc: 'Discounted items',
+    dealQuick: 'POPULAR OFFERS — TAP ONE', dealKind: 'OR SET THE OFFER YOURSELF', dealKindSub: 'Choose the type of offer on the sign, then fill in the numbers.',
+    dealDesc: { free: 'Buy some items, get extra ones free. E.g. buy 2, get 1 free.', pct: 'Extra items cost less. E.g. buy 1, the 2nd is 50% off.', bundle: 'A set number of items for one price. E.g. 3 for AED 100.', bulk: 'Buy at least a number of items, all get a % off. E.g. buy 3+, 20% off.', spend: 'Spend a minimum amount, save money or a %. E.g. spend AED 200, save 50.' }, getFree: 'You get free', getDisc: 'Discounted items',
     dealTpl: { b1g1: 'Buy 1 get 1 free', second50: '2nd at 50% off', b2g1: 'Buy 2 get 1 free', b1g1_25: '2nd at 25% off', bundle3: '3 for a price', bulk3: 'Buy 3, save 20%', spend: 'Spend & save' },
     dealSecond: (p) => `Buy 1, get the 2nd ${p}% off`,
     dealBundle: (n, a) => `${n} for ${a}`, dealBundleSet: (n) => `${n} for … (enter the price)`,
@@ -206,7 +212,8 @@ const translations = {
     scanFoundTitle: 'قرأنا هذا العرض', scanFromSign: (r) => `من اللافتة: «${r}»`, scanIsCorrect: 'هل هذا صحيح؟',
     scanYes: 'نعم، استخدمه', scanNo: 'لا، سأحدده بنفسي', scanNoOffer: 'لم نجد عرضاً في هذه الصورة. حاول مرة أخرى أو حدده بالأسفل.',
     removeOffer: 'إزالة العرض', permNeeded: 'يلزم إذن الكاميرا أو المعرض.',
-    dealQuick: 'العروض الشائعة', dealKind: 'حدد تفاصيل العرض', getFree: 'تحصل مجاناً على', getDisc: 'القطع المخفّضة',
+    dealQuick: 'العروض الشائعة — اضغط على أحدها', dealKind: 'أو حدد العرض بنفسك', dealKindSub: 'اختر نوع العرض المكتوب على اللافتة، ثم أدخل الأرقام.',
+    dealDesc: { free: 'اشترِ عدداً من القطع واحصل على قطع إضافية مجاناً. مثال: اشترِ 2 واحصل على 1 مجاناً.', pct: 'القطع الإضافية بسعر أقل. مثال: اشترِ 1 والثانية بخصم 50%.', bundle: 'عدد محدد من القطع بسعر واحد. مثال: 3 قطع بـ 100 درهم.', bulk: 'اشترِ حداً أدنى من القطع واحصل على خصم % على الكل. مثال: 3 أو أكثر بخصم 20%.', spend: 'أنفق حداً أدنى ووفّر مبلغاً أو نسبة. مثال: أنفق 200 درهم ووفّر 50.' }, getFree: 'تحصل مجاناً على', getDisc: 'القطع المخفّضة',
     dealTpl: { b1g1: 'اشترِ 1 واحصل على 1 مجاناً', second50: 'الثانية بخصم 50%', b2g1: 'اشترِ 2 واحصل على 1 مجاناً', b1g1_25: 'الثانية بخصم 25%', bundle3: '3 بسعر', bulk3: 'اشترِ 3 ووفّر 20%', spend: 'أنفق ووفّر' },
     dealSecond: (p) => `اشترِ 1 والثانية بخصم ${p}%`,
     dealBundle: (n, a) => `${n} بسعر ‎${a}‏`, dealBundleSet: (n) => `${n} بسعر … (أدخل السعر)`,
@@ -425,15 +432,15 @@ const Aurora = ({ theme }) => {
   <Svg style={styles.aurora} width={w} height={h} viewBox="0 0 100 100" preserveAspectRatio="none">
     <Defs>
       <RadialGradient id="ga" cx="0" cy="0" rx="85" ry="48" gradientUnits="userSpaceOnUse">
-        <Stop offset="0" stopColor={theme.blobA} stopOpacity="1" />
+        <Stop offset="0" stopColor={theme.blobA} stopOpacity={theme.glow ?? 1} />
         <Stop offset="1" stopColor={theme.blobA} stopOpacity="0" />
       </RadialGradient>
       <RadialGradient id="gb" cx="100" cy="34" rx="80" ry="42" gradientUnits="userSpaceOnUse">
-        <Stop offset="0" stopColor={theme.blobB} stopOpacity="1" />
+        <Stop offset="0" stopColor={theme.blobB} stopOpacity={theme.glow ?? 1} />
         <Stop offset="1" stopColor={theme.blobB} stopOpacity="0" />
       </RadialGradient>
       <RadialGradient id="gc" cx="25" cy="100" rx="85" ry="48" gradientUnits="userSpaceOnUse">
-        <Stop offset="0" stopColor={theme.blobC} stopOpacity="1" />
+        <Stop offset="0" stopColor={theme.blobC} stopOpacity={theme.glow ?? 1} />
         <Stop offset="1" stopColor={theme.blobC} stopOpacity="0" />
       </RadialGradient>
     </Defs>
@@ -507,7 +514,7 @@ const Welcome = ({ t, font, onDone }) => {
     <Animated.View style={[StyleSheet.absoluteFill, { opacity: fade, zIndex: 10 }]}
       onLayout={() => { SplashScreen.hideAsync().catch(() => {}); }}>
       <Pressable style={styles.welcome} onPress={() => finish(true)} accessibilityRole="button" accessibilityLabel={t.appTitle}>
-        <Aurora theme={darkTheme} />
+        <Aurora theme={brandTheme} />
         <Animated.View style={[styles.welcomeMark, {
           opacity: logo,
           transform: [{ scale: logo.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] }) }],
@@ -850,80 +857,8 @@ const DealSheet = ({ visible, onClose, deal, onChange, theme, t, font, rtl, mone
   };
   const confirmScan = () => { haptic.tap(); onChange({ ...DEFAULT_DEAL, ...deal, ...scanState.found }); setScanState(null); };
   const preview = deal.type === 'none' ? t.dealHint : `${dealText(deal, t, money)} · ${t.dealHint}`;
-  return (
-    <SheetFrame visible={visible} onClose={onClose} theme={theme} tall>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flexShrink: 1 }}>
-        <ScrollView contentContainerStyle={{ gap: 12 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <View style={[styles.sheetNav, { flexDirection: flow(rtl) }]}>
-            <Text style={[styles.sheetTitle, font(800), { color: theme.text, flex: 1, textAlign: rtl ? 'right' : 'left' }]}>{t.deal}</Text>
-            <Pressable onPress={onClose} hitSlop={10} style={[styles.pill, { backgroundColor: theme.solid }]}>
-              <Text style={[styles.pillText, font(700), { color: theme.onSolid }]}>{t.done}</Text>
-            </Pressable>
-          </View>
-
-          {/* Scan the offer sign */}
-          {scanState && scanState !== 'busy' && scanState !== 'none' ? (
-            <View style={[styles.glassCard, { backgroundColor: theme.glassStrong, borderColor: theme.glassBorder, padding: 16, gap: 10 }]}>
-              <Text style={[styles.sectionLabel, font(700), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.scanFoundTitle}</Text>
-              <Text style={[styles.scanFound, font(800), { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>{dealText({ ...DEFAULT_DEAL, ...scanState.found }, t, money)}</Text>
-              <Text numberOfLines={2} style={[styles.regionMeta, font(600), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.scanFromSign(scanState.raw.slice(0, 60))}</Text>
-              <Text style={[styles.sheetSub, font(700), { color: theme.text, textAlign: rtl ? 'right' : 'left', marginBottom: 0 }]}>{t.scanIsCorrect}</Text>
-              <View style={{ flexDirection: flow(rtl), gap: 8 }}>
-                <Pressable onPress={confirmScan} style={[styles.sheetBtn, { flex: 1, backgroundColor: theme.solid }]}>
-                  <Text style={[styles.sheetBtnText, font(700), { color: theme.onSolid }]}>{t.scanYes}</Text>
-                </Pressable>
-                <Pressable onPress={() => setScanState(null)} style={[styles.sheetBtn, { flex: 1, backgroundColor: theme.glass }]}>
-                  <Text style={[styles.sheetBtnText, font(700), { color: theme.text }]}>{t.scanNo}</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : (
-            <View style={[styles.glassCard, styles.scanCard, { flexDirection: flow(rtl), backgroundColor: theme.glass, borderColor: theme.glassBorder }]}>
-              <View style={[styles.fxBadge, { backgroundColor: theme.glassStrong }]}>
-                {scanState === 'busy' ? <ActivityIndicator color={theme.text} /> : <Ionicons name="scan-outline" size={22} color={theme.text} />}
-              </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={[styles.fxCardHint, font(800), { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>{t.scanOfferTitle}</Text>
-                <Text style={[styles.regionMeta, font(600), { color: scanState === 'none' ? theme.danger : theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>
-                  {scanState === 'busy' ? t.scanning : scanState === 'none' ? t.scanNoOffer : t.scanOfferSub}
-                </Text>
-              </View>
-              <View style={{ gap: 6 }}>
-                <Pressable onPress={() => scanOffer(true)} disabled={scanState === 'busy'} accessibilityLabel={t.takePhoto} style={[styles.scanIconBtn, { backgroundColor: theme.solid }]}>
-                  <Ionicons name="camera" size={18} color={theme.onSolid} />
-                </Pressable>
-                <Pressable onPress={() => scanOffer(false)} disabled={scanState === 'busy'} accessibilityLabel={t.chooseGallery} style={[styles.scanIconBtn, { backgroundColor: theme.glassStrong }]}>
-                  <Ionicons name="image-outline" size={18} color={theme.text} />
-                </Pressable>
-              </View>
-            </View>
-          )}
-
-          <Text style={[styles.sectionLabel, font(700), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.dealQuick}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.chipInner, { flexDirection: flow(rtl), paddingHorizontal: 0 }]}>
-            {DEAL_TEMPLATES.map((tp) => (
-              <Pressable key={tp.key} onPress={() => { haptic.select(); onChange({ ...DEFAULT_DEAL, ...deal, ...tp.deal }); }}
-                style={[styles.chip, styles.templateChip, { backgroundColor: theme.glassStrong }]}>
-                <Text style={[styles.chipText, font(700), { color: theme.text }]}>{t.dealTpl[tp.key]}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-
-          <View style={[styles.chipInner, { flexDirection: flow(rtl), paddingHorizontal: 0, flexWrap: 'wrap' }]}>
-            {DEAL_TYPES.map((v) => {
-              const on = deal.type === v;
-              return (
-                <Pressable key={v} onPress={() => { haptic.select(); set(v === deal.type ? { type: 'none' } : { type: v, ...(v === 'spend' ? { n: 1 } : v === 'bundle' ? { n: Math.max(2, deal.n) } : {}) }); }}
-                  style={[styles.chip, { backgroundColor: on ? theme.solid : theme.glass }]}>
-                  <Text style={[styles.chipText, font(700), { color: on ? theme.onSolid : theme.text }]}>{t.dealTypes[v]}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {deal.type !== 'none' && <Text style={[styles.dealExample, font(600), { color: theme.save, textAlign: rtl ? 'right' : 'left' }]}>{t.dealExample[deal.type]}</Text>}
-          {deal.type !== 'none' && (
-            <View style={[styles.glassCard, { backgroundColor: theme.glass, borderColor: theme.glassBorder, padding: 14, gap: 12 }]}>
+  const details = (
+    <View style={[styles.criteriaDetails, { borderTopColor: theme.separator }]}>
               {(deal.type === 'free' || deal.type === 'pct') && (
                 <>
                   <Stepper label={t.buy} value={deal.buy} onChange={(buy) => set({ buy })} theme={theme} font={font} rtl={rtl} />
@@ -976,7 +911,92 @@ const DealSheet = ({ visible, onClose, deal, onChange, theme, t, font, rtl, mone
                 </>
               )}
             </View>
+  );
+
+  return (
+    <SheetFrame visible={visible} onClose={onClose} theme={theme} tall>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flexShrink: 1 }}>
+        <ScrollView contentContainerStyle={{ gap: 12 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <View style={[styles.sheetNav, { flexDirection: flow(rtl) }]}>
+            <Text style={[styles.sheetTitle, font(800), { color: theme.text, flex: 1, textAlign: rtl ? 'right' : 'left' }]}>{t.deal}</Text>
+            <Pressable onPress={onClose} hitSlop={10} style={[styles.pill, { backgroundColor: theme.solid }]}>
+              <Text style={[styles.pillText, font(700), { color: theme.onSolid }]}>{t.done}</Text>
+            </Pressable>
+          </View>
+
+          {/* Scan the offer sign */}
+          {scanState && scanState !== 'busy' && scanState !== 'none' ? (
+            <View style={[styles.glassCard, { backgroundColor: theme.glassStrong, borderColor: theme.glassBorder, padding: 16, gap: 10 }]}>
+              <Text style={[styles.sectionLabel, font(700), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.scanFoundTitle}</Text>
+              <Text style={[styles.scanFound, font(800), { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>{dealText({ ...DEFAULT_DEAL, ...scanState.found }, t, money)}</Text>
+              <Text numberOfLines={2} style={[styles.regionMeta, font(600), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.scanFromSign(scanState.raw.slice(0, 60))}</Text>
+              <Text style={[styles.sheetSub, font(700), { color: theme.text, textAlign: rtl ? 'right' : 'left', marginBottom: 0 }]}>{t.scanIsCorrect}</Text>
+              <View style={{ flexDirection: flow(rtl), gap: 8 }}>
+                <Pressable onPress={confirmScan} style={[styles.sheetBtn, { flex: 1, backgroundColor: theme.solid }]}>
+                  <Text style={[styles.sheetBtnText, font(700), { color: theme.onSolid }]}>{t.scanYes}</Text>
+                </Pressable>
+                <Pressable onPress={() => setScanState(null)} style={[styles.sheetBtn, { flex: 1, backgroundColor: theme.glass }]}>
+                  <Text style={[styles.sheetBtnText, font(700), { color: theme.text }]}>{t.scanNo}</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <View style={[styles.glassCard, styles.scanCard, { flexDirection: flow(rtl), backgroundColor: theme.glass, borderColor: theme.glassBorder }]}>
+              <View style={[styles.fxBadge, { backgroundColor: theme.glassStrong }]}>
+                {scanState === 'busy' ? <ActivityIndicator color={theme.text} /> : <Ionicons name="scan-outline" size={22} color={theme.text} />}
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={[styles.fxCardHint, font(800), { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>{t.scanOfferTitle}</Text>
+                <Text style={[styles.regionMeta, font(600), { color: scanState === 'none' ? theme.danger : theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>
+                  {scanState === 'busy' ? t.scanning : scanState === 'none' ? t.scanNoOffer : t.scanOfferSub}
+                </Text>
+              </View>
+              <View style={{ gap: 6 }}>
+                <Pressable onPress={() => scanOffer(true)} disabled={scanState === 'busy'} accessibilityLabel={t.takePhoto} style={[styles.scanIconBtn, { backgroundColor: theme.solid }]}>
+                  <Ionicons name="camera" size={18} color={theme.onSolid} />
+                </Pressable>
+                <Pressable onPress={() => scanOffer(false)} disabled={scanState === 'busy'} accessibilityLabel={t.chooseGallery} style={[styles.scanIconBtn, { backgroundColor: theme.glassStrong }]}>
+                  <Ionicons name="image-outline" size={18} color={theme.text} />
+                </Pressable>
+              </View>
+            </View>
           )}
+
+          <Text style={[styles.sectionLabel, font(700), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.dealQuick}</Text>
+          <View style={[styles.chipInner, { flexDirection: flow(rtl), paddingHorizontal: 0, flexWrap: 'wrap' }]}>
+            {DEAL_TEMPLATES.map((tp) => (
+              <Pressable key={tp.key} onPress={() => { haptic.select(); onChange({ ...DEFAULT_DEAL, ...deal, ...tp.deal }); }}
+                style={[styles.chip, styles.templateChip, { backgroundColor: theme.glassStrong }]}>
+                <Text style={[styles.chipText, font(700), { color: theme.text }]}>{t.dealTpl[tp.key]}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {/* Set the criteria yourself */}
+          <View style={[styles.glassCard, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}>
+            <View style={styles.criteriaHead}>
+              <Text style={[styles.sectionLabel, font(700), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.dealKind}</Text>
+              <Text style={[styles.regionMeta, font(600), { color: theme.textMuted, textAlign: rtl ? 'right' : 'left' }]}>{t.dealKindSub}</Text>
+            </View>
+            {DEAL_TYPES.map((v, idx) => {
+              const on = deal.type === v;
+              return (
+                <View key={v} style={[{ borderTopWidth: HAIRLINE, borderTopColor: theme.separator }, on && { backgroundColor: theme.glassStrong }]}>
+                  <Pressable onPress={() => { haptic.select(); set(on ? { type: 'none' } : { type: v, ...(v === 'spend' ? { n: 1 } : v === 'bundle' ? { n: Math.max(2, deal.n) } : {}) }); }}
+                    accessibilityRole="radio" accessibilityState={{ checked: on }}
+                    style={({ pressed }) => [styles.criteriaRow, { flexDirection: flow(rtl), opacity: pressed ? 0.7 : 1 }]}>
+                    <Ionicons name={on ? 'radio-button-on' : 'radio-button-off'} size={22} color={on ? theme.save : theme.textMuted} />
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={[styles.criteriaName, font(800), { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>{t.dealTypes[v]}</Text>
+                      <Text style={[styles.criteriaDesc, font(600), { color: theme.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>{t.dealDesc[v]}</Text>
+                    </View>
+                  </Pressable>
+                  {on && details}
+                </View>
+              );
+            })}
+          </View>
+
           <Text style={[styles.note, font(600), { color: deal.type === 'none' ? theme.textSecondary : theme.save, textAlign: 'center' }]}>{preview}</Text>
           {deal.type !== 'none' && (
             <Pressable onPress={() => { haptic.select(); set({ type: 'none' }); }} style={styles.sheetGhost}>
@@ -1544,7 +1564,7 @@ const CalculatorScreen = () => {
   const align = rtl ? 'right' : 'left';
 
   // Same colour as the system splash, which stays visible until the welcome screen draws.
-  if (!loaded || !fontsLoaded) return <View style={{ flex: 1, backgroundColor: darkTheme.base }} />;
+  if (!loaded || !fontsLoaded) return <View style={{ flex: 1, backgroundColor: brandTheme.base }} />;
 
   const taxPicks = [...new Set([rg.vat, ...TAX_PICKS].filter((v) => v > 0))];
   const presets = current.kind === 'tax' ? taxPicks
@@ -1832,7 +1852,7 @@ const styles = StyleSheet.create({
   keyFnText: { fontSize: 15 },
 
   // Welcome
-  welcome: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 22, paddingHorizontal: 32, backgroundColor: darkTheme.base },
+  welcome: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 22, paddingHorizontal: 32, backgroundColor: brandTheme.base },
   welcomeMark: {
     width: 176, height: 176, borderRadius: 48, alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)',
@@ -1869,6 +1889,11 @@ const styles = StyleSheet.create({
   fxCardRate: { fontSize: 12 },
   dealExample: { fontSize: 13 },
   rowHint: { fontSize: 13 },
+  criteriaHead: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 10, gap: 2 },
+  criteriaRow: { paddingHorizontal: 14, paddingVertical: 12, alignItems: 'center', gap: 12 },
+  criteriaName: { fontSize: 15 },
+  criteriaDesc: { fontSize: 12.5, lineHeight: 17 },
+  criteriaDetails: { paddingHorizontal: 14, paddingBottom: 14, paddingTop: 4, gap: 12 },
   scanCard: { padding: 14, alignItems: 'center', gap: 12 },
   scanIconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   scanFound: { fontSize: 22 },
