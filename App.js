@@ -538,10 +538,15 @@ const Welcome = ({ t, font, onDone }) => {
 // ─── Sheets ───────────────────────────────────────────────────────────────────
 const SheetFrame = ({ visible, onClose, theme, dismissable = true, tall, children }) => {
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  // An exact pixel cap (not a %): on Android the modal window can be taller than the
+  // visible screen, which pushed the end of long sheets off-screen so they couldn't scroll.
+  const maxH = Math.round(height - insets.top - (tall ? 12 : 48));
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={dismissable ? onClose : undefined}>
+    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent navigationBarTranslucent
+      onRequestClose={dismissable ? onClose : undefined}>
       <Pressable style={[styles.dim, { backgroundColor: theme.dim }]} onPress={dismissable ? onClose : undefined}>
-        <Pressable onPress={() => {}} style={[styles.sheet, tall && styles.sheetTall, { backgroundColor: theme.sheet, borderColor: theme.glassBorder, paddingBottom: insets.bottom + 18 }]}>
+        <Pressable onPress={() => {}} style={[styles.sheet, { maxHeight: maxH, backgroundColor: theme.sheet, borderColor: theme.glassBorder, paddingBottom: insets.bottom + 18 }]}>
           <View style={[styles.grabber, { backgroundColor: theme.textMuted }]} />
           {children}
         </Pressable>
@@ -915,8 +920,8 @@ const DealSheet = ({ visible, onClose, deal, onChange, theme, t, font, rtl, mone
 
   return (
     <SheetFrame visible={visible} onClose={onClose} theme={theme} tall>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flexShrink: 1 }}>
-        <ScrollView contentContainerStyle={{ gap: 12 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.sheetBody}>
+        <ScrollView style={styles.sheetScroll} contentContainerStyle={{ gap: 12, paddingBottom: 12 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={[styles.sheetNav, { flexDirection: flow(rtl) }]}>
             <Text style={[styles.sheetTitle, font(800), { color: theme.text, flex: 1, textAlign: rtl ? 'right' : 'left' }]}>{t.deal}</Text>
             <Pressable onPress={onClose} hitSlop={10} style={[styles.pill, { backgroundColor: theme.solid }]}>
@@ -1073,7 +1078,7 @@ const RegionSheet = ({ visible, fromButton, onSkip, onApply, theme, t, font, rtl
   );
   return (
     <SheetFrame visible={visible} onClose={onSkip} theme={theme} tall>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ gap: 12, flexShrink: 1 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.sheetBody, { gap: 12 }]}>
         {step === 'pick' && (
           <>
             <Text style={[styles.sheetTitle, font(800), { color: theme.text }]}>{t.regionTitle}</Text>
@@ -1188,7 +1193,7 @@ const FxSheet = ({ visible, onClose, rg, home, onHome, fx, onRefresh, manual, on
   );
   return (
     <SheetFrame visible={visible} onClose={onClose} theme={theme} tall>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ gap: 12, flexShrink: 1 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.sheetBody, { gap: 12 }]}>
         <View style={[styles.sheetNav, { flexDirection: flow(rtl) }]}>
           <Text style={[styles.sheetTitle, font(800), { color: theme.text, flex: 1, textAlign: align }]}>{t.fxTitle}</Text>
           <Pressable onPress={onClose} hitSlop={10} style={[styles.pill, { backgroundColor: theme.solid }]}>
@@ -1875,7 +1880,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   snackText: { flex: 1, fontSize: 14 },
   snackAction: { fontSize: 15 },
-  regionList: { flexGrow: 0, flexShrink: 1 },
+  regionList: { flexGrow: 0, flexShrink: 1, minHeight: 0 },
   regionRow: { minHeight: 56, paddingHorizontal: 16, paddingVertical: 8, alignItems: 'center', gap: 10 },
   regionName: { fontSize: 16 },
   regionMeta: { fontSize: 13, marginTop: 1 },
@@ -1910,10 +1915,11 @@ const styles = StyleSheet.create({
   amountBox: { height: 48, minWidth: 130, borderRadius: 14, paddingHorizontal: 12, alignItems: 'center', gap: 6 },
   amountSym: { fontSize: 14 },
   amountInput: { flex: 1, height: '100%', fontSize: 18, paddingVertical: 0, textAlign: 'right', ...(Platform.OS === 'web' ? { outlineStyle: 'none', width: 0 } : null) },
-  sheetTall: { maxHeight: '92%' },
 
   // Sheets
   dim: { flex: 1, justifyContent: 'flex-end' },
+  sheetBody: { flexShrink: 1, minHeight: 0 },
+  sheetScroll: { flexShrink: 1, minHeight: 0 },
   sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderBottomWidth: 0, paddingHorizontal: 20, paddingTop: 8, gap: 12 },
   grabber: { width: 38, height: 5, borderRadius: 3, alignSelf: 'center', marginBottom: 6 },
   sheetNav: { alignItems: 'center', gap: 10 },
