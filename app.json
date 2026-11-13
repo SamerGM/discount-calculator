@@ -19,8 +19,12 @@
       },
       "package": "com.samer.discountcalculator",
       "versionCode": 29,
-      "targetSdkVersion": 36,
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "newArchEnabled": false,
     "extra": {
@@ -38,6 +42,15 @@
           "imageWidth": 180,
           "resizeMode": "contain",
           "backgroundColor": "#1E1744"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36
+          }
         }
       ]
     ],
