@@ -1649,6 +1649,9 @@ const CalculatorScreen = () => {
           onLayout={(e) => { viewH.current = e.nativeEvent.layout.height; }}
           onScrollBeginDrag={closeKeypad} keyboardShouldPersistTaps="handled"
         >
+          {/* Empty space sits above the rows, so rows, total and keypad stay together at the bottom.
+              Tapping it closes the keypad. */}
+          <Pressable style={{ flexGrow: 1, minHeight: 0 }} onPress={closeKeypad} />
           <View style={[styles.glassCard, glassCard, { paddingVertical: 2 }]}>
             {fields.map((f) => (
               <React.Fragment key={f.key}>
@@ -1675,8 +1678,6 @@ const CalculatorScreen = () => {
               </React.Fragment>
             ))}
           </View>
-          {/* Tapping the empty space under the rows closes the keypad. */}
-          <Pressable style={{ flexGrow: 1, minHeight: 24 }} onPress={closeKeypad} />
         </ScrollView>
 
         {/* Result: at the bottom, next to the thumb */}
