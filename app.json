@@ -52,7 +52,8 @@
             "targetSdkVersion": 36
           }
         }
-      ]
+      ],
+      "./plugins/withLegacyBack"
     ],
     "web": {
       "favicon": "./assets/favicon.png"
