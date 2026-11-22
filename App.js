@@ -1519,7 +1519,8 @@ const CalculatorScreen = () => {
   const pressKey = (key) => {
     if (key === 'next') {
       const i = fields.findIndex((f) => f.key === current.key);
-      setSelected(fields[(i + 1) % fields.length].key);
+      if (i === fields.length - 1) { closeKeypad(); return; }
+      setSelected(fields[i + 1].key);
       return;
     }
     if (key === 'type') { if (current.adjustable) toggleType(current.key); return; }
@@ -1640,8 +1641,46 @@ const CalculatorScreen = () => {
         </View>
 
 
-        {/* Result */}
-        <View style={[styles.glassCard, styles.resultCard, glassCard, compact && { paddingVertical: 10 }]}>
+
+        {/* Fields */}
+        <ScrollView
+          ref={listRef} style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}
+          onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }} scrollEventThrottle={32}
+          onLayout={(e) => { viewH.current = e.nativeEvent.layout.height; }}
+          onScrollBeginDrag={closeKeypad} keyboardShouldPersistTaps="handled"
+        >
+          <View style={[styles.glassCard, glassCard, { paddingVertical: 2 }]}>
+            {fields.map((f) => (
+              <React.Fragment key={f.key}>
+                <View onLayout={(e) => { heights.current[f.key] = e.nativeEvent.layout.height; }}>
+                  <FieldRow
+                    field={f} active={keypadOpen && f.key === current.key} last={f.key === lastFieldKey} theme={theme} rtl={rtl} t={t} font={font}
+                    sym={rg.sym} amtShort={amtShort}
+                    onPress={() => selectField(f.key)}
+                    onToggleType={() => { haptic.select(); setSelected(f.key); openKeypad(); toggleType(f.key); }}
+                    onScan={f.kind === 'price' ? () => setScanVisible(true) : null}
+                  />
+                </View>
+                {f.key === lastDiscountKey && (
+                  <Pressable onPress={() => { haptic.select(); setDealVisible(true); }}
+                    onLayout={(e) => { heights.current.deal = e.nativeEvent.layout.height; }}
+                    style={({ pressed }) => [styles.fieldRow, { minHeight: 50, flexDirection: row, backgroundColor: pressed ? theme.glass : 'transparent', borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
+                    <Ionicons name="pricetags-outline" size={17} color={form.deal.type === 'none' ? theme.textSecondary : theme.save} />
+                    <Text numberOfLines={1} style={[styles.fieldLabel, font(700), { color: form.deal.type === 'none' ? theme.textSecondary : theme.save, textAlign: align }]}>
+                      {form.deal.type === 'none' ? t.deal : dealText(form.deal, t, money)}
+                    </Text>
+                    <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={17} color={theme.textMuted} />
+                  </Pressable>
+                )}
+              </React.Fragment>
+            ))}
+          </View>
+          {/* Tapping the empty space under the rows closes the keypad. */}
+          <Pressable style={{ flexGrow: 1, minHeight: 24 }} onPress={closeKeypad} />
+        </ScrollView>
+
+        {/* Result: at the bottom, next to the thumb */}
+        <View style={[styles.glassCard, styles.resultCard, glassCard, { marginTop: 8 }, compact && { paddingVertical: 10 }]}>
           <View style={[styles.resultTop, { flexDirection: row }]}>
             <Text style={[styles.resultLabel, font(700), { color: theme.textSecondary }]}>{t.finalPrice}</Text>
             <View style={[styles.resultActions, { flexDirection: row }]}>
@@ -1681,41 +1720,6 @@ const CalculatorScreen = () => {
         </View>
 
         {fxCard}
-
-        {/* Fields */}
-        <ScrollView
-          ref={listRef} style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}
-          onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }} scrollEventThrottle={32}
-          onLayout={(e) => { viewH.current = e.nativeEvent.layout.height; }}
-        >
-          <View style={[styles.glassCard, glassCard, { paddingVertical: 2 }]}>
-            {fields.map((f) => (
-              <React.Fragment key={f.key}>
-                <View onLayout={(e) => { heights.current[f.key] = e.nativeEvent.layout.height; }}>
-                  <FieldRow
-                    field={f} active={keypadOpen && f.key === current.key} last={f.key === lastFieldKey} theme={theme} rtl={rtl} t={t} font={font}
-                    sym={rg.sym} amtShort={amtShort}
-                    onPress={() => selectField(f.key)}
-                    onToggleType={() => { haptic.select(); setSelected(f.key); openKeypad(); toggleType(f.key); }}
-                    onScan={f.kind === 'price' ? () => setScanVisible(true) : null}
-                  />
-                </View>
-                {f.key === lastDiscountKey && (
-                  <Pressable onPress={() => { haptic.select(); setDealVisible(true); }}
-                    onLayout={(e) => { heights.current.deal = e.nativeEvent.layout.height; }}
-                    style={({ pressed }) => [styles.fieldRow, { minHeight: 50, flexDirection: row, backgroundColor: pressed ? theme.glass : 'transparent', borderBottomWidth: HAIRLINE, borderBottomColor: theme.separator }]}>
-                    <Ionicons name="pricetags-outline" size={17} color={form.deal.type === 'none' ? theme.textSecondary : theme.save} />
-                    <Text numberOfLines={1} style={[styles.fieldLabel, font(700), { color: form.deal.type === 'none' ? theme.textSecondary : theme.save, textAlign: align }]}>
-                      {form.deal.type === 'none' ? t.deal : dealText(form.deal, t, money)}
-                    </Text>
-                    <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={17} color={theme.textMuted} />
-                  </Pressable>
-                )}
-              </React.Fragment>
-            ))}
-          </View>
-        </ScrollView>
-
         {/* Keypad tray */}
         {undoForm && (
           <View style={[styles.snackbar, { bottom: (keypadOpen ? trayH : insets.bottom) + 10, flexDirection: row, backgroundColor: theme.solid }]}>
@@ -1773,7 +1777,7 @@ const CalculatorScreen = () => {
             <View style={styles.keyRow}>
               <Key label="." onPress={() => pressKey('.')} theme={theme} height={keyH} font={font} />
               <Key label="0" onPress={() => pressKey('0')} theme={theme} height={keyH} font={font} />
-              <Key label={t.next} icon={rtl ? 'arrow-back' : 'arrow-forward'} variant="primary" flex={2.06} onPress={() => pressKey('next')} theme={theme} height={keyH} font={font} />
+              <Key label={current.key === lastFieldKey ? t.done : t.next} icon={current.key === lastFieldKey ? 'checkmark' : rtl ? 'arrow-back' : 'arrow-forward'} variant="primary" flex={2.06} onPress={() => pressKey('next')} theme={theme} height={keyH} font={font} />
             </View>
           </View>
         </View>
@@ -1829,7 +1833,7 @@ const styles = StyleSheet.create({
 
   // Field list
   list: { flex: 1, marginTop: 8 },
-  listContent: { paddingHorizontal: 16, paddingBottom: LIST_PAD },
+  listContent: { paddingHorizontal: 16, paddingBottom: LIST_PAD, flexGrow: 1 },
   tapHintWrap: { paddingTop: 6, alignItems: 'center' },
   hideBtn: { width: 40, height: 34, borderRadius: 12, marginHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
   fieldRow: { minHeight: 60, paddingHorizontal: 16, alignItems: 'center', gap: 10 },
