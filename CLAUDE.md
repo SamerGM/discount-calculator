@@ -40,7 +40,8 @@ Expo/React Native Android app (Play package `com.samer.discountcalculator`). Rea
   - security hardening: API 36, blocked permissions;
   - total and home-currency cards at the bottom, with rows, total and keypad together at the bottom and empty space under the header;
   - keypad opens only on tapping a row and closes on Done (last row), scroll, tapping empty space, ▾ or Back;
-  - Back-swipe fix.
+  - Back-swipe fix;
+  - search sheets (country/currency) lift above the soft keyboard (`useKeyboardOverlap` in SheetFrame) and hide subtitle/footer while typing.
 - Latest test APK: `test-3a783d6`. The owner is testing it on their phone.
 
 ## Next steps

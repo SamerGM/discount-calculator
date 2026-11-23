@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet, Text, View, Pressable, ScrollView, StatusBar, Platform, TextInput, KeyboardAvoidingView,
-  BackHandler, LayoutAnimation, UIManager,
+  BackHandler, LayoutAnimation, UIManager, Keyboard,
   useColorScheme, useWindowDimensions, Dimensions, Modal, Alert, ActivityIndicator, Animated, I18nManager, AccessibilityInfo, Easing,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -536,17 +536,45 @@ const Welcome = ({ t, font, onDone }) => {
 };
 
 // ─── Sheets ───────────────────────────────────────────────────────────────────
+// Android edge-to-edge: the modal window isn't resized for the soft keyboard, so a
+// search field inside a sheet ends up hidden under it. Track how much of this window the
+// keyboard covers (0 if the window was already resized) and lift the sheet by that much.
+// Soft-keyboard height in dp (0 when hidden). Web previews can fake it with window.__KB.
+const useKeyboardHeight = () => {
+  const [kbH, setKbH] = useState(0);
+  useEffect(() => {
+    if (Platform.OS === 'web') return undefined;
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const a = Keyboard.addListener(showEvt, (e) => setKbH(e?.endCoordinates?.height || 0));
+    const b = Keyboard.addListener(hideEvt, () => setKbH(0));
+    return () => { a.remove(); b.remove(); };
+  }, []);
+  return kbH;
+};
+
+const useKeyboardOverlap = (rootH) => {
+  const kbH = useKeyboardHeight();
+  if (!kbH || !rootH) return 0;
+  // If the window already shrank for the keyboard, part (or all) of it is accounted for.
+  const shrunk = Math.max(0, Dimensions.get('screen').height - rootH);
+  return Math.max(0, Math.round(kbH - shrunk));
+};
+
 const SheetFrame = ({ visible, onClose, theme, dismissable = true, tall, children }) => {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
+  const [rootH, setRootH] = useState(0);
+  const kb = useKeyboardOverlap(rootH || height);
   // An exact pixel cap (not a %): on Android the modal window can be taller than the
   // visible screen, which pushed the end of long sheets off-screen so they couldn't scroll.
-  const maxH = Math.round(height - insets.top - (tall ? 12 : 48));
+  const maxH = Math.round((rootH || height) - insets.top - (tall ? 12 : 48) - kb);
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent navigationBarTranslucent
       onRequestClose={dismissable ? onClose : undefined}>
-      <Pressable style={[styles.dim, { backgroundColor: theme.dim }]} onPress={dismissable ? onClose : undefined}>
-        <Pressable onPress={() => {}} style={[styles.sheet, { maxHeight: maxH, backgroundColor: theme.sheet, borderColor: theme.glassBorder, paddingBottom: insets.bottom + 18 }]}>
+      <Pressable style={[styles.dim, { backgroundColor: theme.dim, paddingBottom: kb }]} onPress={dismissable ? onClose : undefined}
+        onLayout={(e) => setRootH(Math.round(e.nativeEvent.layout.height))}>
+        <Pressable onPress={() => {}} style={[styles.sheet, { maxHeight: maxH, backgroundColor: theme.sheet, borderColor: theme.glassBorder, paddingBottom: kb ? 12 : insets.bottom + 18 }]}>
           <View style={[styles.grabber, { backgroundColor: theme.textMuted }]} />
           {children}
         </Pressable>
@@ -1034,6 +1062,8 @@ const ListHeader = ({ label, theme, font, rtl }) => (
 );
 
 const RegionSheet = ({ visible, fromButton, onSkip, onApply, theme, t, font, rtl, lang }) => {
+  // Keyboard up: drop the subtitle and footer so the search field and results fit.
+  const kbOpen = useKeyboardHeight() > 0;
   const [step, setStep] = useState('pick');
   const [pending, setPending] = useState(null);
   const [query, setQuery] = useState('');
@@ -1082,7 +1112,7 @@ const RegionSheet = ({ visible, fromButton, onSkip, onApply, theme, t, font, rtl
         {step === 'pick' && (
           <>
             <Text style={[styles.sheetTitle, font(800), { color: theme.text }]}>{t.regionTitle}</Text>
-            <Text style={[styles.sheetSub, font(400), { color: theme.textSecondary }]}>{t.regionSub}</Text>
+            {!kbOpen && <Text style={[styles.sheetSub, font(400), { color: theme.textSecondary }]}>{t.regionSub}</Text>}
             <SearchBox value={query} onChange={setQuery} placeholder={t.searchCountry} theme={theme} font={font} rtl={rtl} />
             <ScrollView style={[styles.glassCard, styles.regionList, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}
               keyboardShouldPersistTaps="handled">
@@ -1099,9 +1129,11 @@ const RegionSheet = ({ visible, fromButton, onSkip, onApply, theme, t, font, rtl
                 <Text style={[styles.regionName, font(700), { color: theme.save, flex: 1, textAlign: align }]}>{t.other}</Text>
               </Pressable>
             </ScrollView>
-            <Pressable onPress={onSkip} style={styles.sheetGhost}>
-              <Text style={[styles.sheetBtnText, font(600), { color: theme.textSecondary }]}>{fromButton ? t.cancel : t.skip}</Text>
-            </Pressable>
+            {!kbOpen && (
+              <Pressable onPress={onSkip} style={styles.sheetGhost}>
+                <Text style={[styles.sheetBtnText, font(600), { color: theme.textSecondary }]}>{fromButton ? t.cancel : t.skip}</Text>
+              </Pressable>
+            )}
           </>
         )}
         {step === 'manual' && (
@@ -1152,6 +1184,8 @@ const RegionSheet = ({ visible, fromButton, onSkip, onApply, theme, t, font, rtl
 // ─── Home-currency conversion ─────────────────────────────────────────────────
 // Step 1: pick the home currency (search). Step 2: confirm today's rate or enter your own.
 const FxSheet = ({ visible, onClose, rg, home, onHome, fx, onRefresh, manual, onManual, confirmed, onConfirm, theme, t, font, rtl, lang }) => {
+  // Keyboard up: drop the subtitle and footer so the search field and results fit.
+  const kbOpen = useKeyboardHeight() > 0;
   const [step, setStep] = useState('rate');
   const [query, setQuery] = useState('');
   const [own, setOwn] = useState('');
@@ -1204,7 +1238,7 @@ const FxSheet = ({ visible, onClose, rg, home, onHome, fx, onRefresh, manual, on
 
         {step === 'pick' && !!rg.cur && (
           <>
-            <Text style={[styles.sheetSub, font(400), { color: theme.textSecondary, textAlign: align }]}>{t.fxSub}</Text>
+            {!kbOpen && <Text style={[styles.sheetSub, font(400), { color: theme.textSecondary, textAlign: align }]}>{t.fxSub}</Text>}
             <SearchBox value={query} onChange={setQuery} placeholder={t.searchCurrency} theme={theme} font={font} rtl={rtl} />
             <ScrollView style={[styles.glassCard, styles.regionList, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]} keyboardShouldPersistTaps="handled">
               {popular.length > 0 && <ListHeader label={t.popular} theme={theme} font={font} rtl={rtl} />}
@@ -1213,7 +1247,7 @@ const FxSheet = ({ visible, onClose, rg, home, onHome, fx, onRefresh, manual, on
               {rest.map((c) => <Row key={c.cur} c={c} />)}
               {rest.length === 0 && popular.length === 0 && <Text style={[styles.emptyText, font(600), { color: theme.textSecondary }]}>{t.noResults}</Text>}
             </ScrollView>
-            {home && (
+            {home && !kbOpen && (
               <Pressable onPress={() => { haptic.select(); onHome(null); onClose(); }} style={styles.sheetGhost}>
                 <Text style={[styles.sheetBtnText, font(600), { color: theme.danger }]}>{t.fxTurnOff}</Text>
               </Pressable>
